@@ -10,6 +10,28 @@ import random
 import shutil
 
 
+def extract_width_and_height(df):
+    """Extracts the width and height of each image in the dataset.
+
+    Args:
+        df (Pandas DataFrame): The Pandas DataFrame containing the annotations.
+
+    Returns:
+        widths (list): The list of widths of the images.
+        heights (list): The list of heights of the images.
+
+    """
+    image_paths = df.image.values
+    widths = np.array([])
+    heights = np.array([])
+    for image_path in tqdm(image_paths):
+        image = cv2.imread(image_path)
+        width, height = image.shape[:2]
+        widths = np.append(widths, width)
+        heights = np.append(heights, height)
+    return widths, heights
+
+
 def safe_literal_eval(value):
     try:
         return ast.literal_eval(value)
@@ -93,8 +115,8 @@ def get_bboxes(row, width=12):
         if "x0" in bar.keys():
             boxes.append({
                 "class": "bar",
-                "x": bar["x0"] + bar["width"] / 2,
-                "y": bar["y0"],
+                "x": bar["x0"] + bar["width"] / 2 if row["chart-type"] == "vertical_bar" else bar["x0"] + bar["width"],
+                "y": bar["y0"] if row["chart-type"] == "vertical_bar" else bar["y0"] + bar["height"] / 2,
                 "width": width,
                 "height": width
             })

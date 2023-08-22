@@ -92,6 +92,10 @@ def extract_ax_data(ax, fig, x, y, name=None, data_type="visual-elements.lines",
     data_series_locations = [{"x": ax.transData.transform((x_val, y_val))[0],
                               "y": image_height - ax.transData.transform((x_val, y_val - off_set))[1]}
                              for x_val, y_val in zip(x_numeric, y)]
+    if bar_chart_type == "horizontal_bar":
+        data_series_locations = [{"x": ax.transData.transform((y_val, x_val))[0],
+                                  "y": image_height - ax.transData.transform((y_val - off_set, x_val))[1]}
+                                 for x_val, y_val in zip(x_numeric, y)]
     if is_categorical and bar_chart_type == "vertical_bar":
         x_ticks_location = [point["x"] for point in data_series_locations]
     plot_bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())

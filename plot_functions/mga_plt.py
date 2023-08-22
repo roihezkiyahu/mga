@@ -31,8 +31,9 @@ color_mapping = {
 
 class_2_color = {box_class: color_mapping[color] for box_class, color in zip(box_classes, colors_list)}
 
-def plot_image_with_boxes(img_name, boxes, jupyter=True):
-    img = cv2.imread(img_name)
+
+def plot_image_with_boxes(img_path, boxes, jupyter=True):
+    img = cv2.imread(img_path)
 
     # Iterate through the boxes and draw rectangles
     for box in boxes:

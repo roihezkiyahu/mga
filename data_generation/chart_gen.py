@@ -17,7 +17,7 @@ def generate_line_chart(x, y, line_color='blue', grid_style="both", x_title=None
     set_title(ax, x_title, y_title, graph_title)
     ax.plot(x, y, color=line_color, linestyle=line_style, marker=marker_style)
     ax.set_xticks(x)
-    ax.set_xticklabels(x, rotation=0 if not rotate else 45, ha='right')  # Rotate for better visibility if needed
+    ax.set_xticklabels(x, rotation=0 if not rotate else 45, ha='right' if rotate else 'center')  # Rotate for better visibility if needed
     set_ax_loc_rotate(ax, rotate)
     data_dict = {
         'chart-type': 'line',
@@ -131,7 +131,7 @@ def generate_bar_chart(categories, values, color='blue', grid_style="both", them
     set_title(ax, x_title, y_title, graph_title)
     set_ax_loc_rotate(ax, rotate)
     if rotate:
-        ax.set_xticklabels(categories, rotation=45)  # Rotate for better visibility if needed
+        ax.set_xticklabels(categories, rotation=45, ha='right')  # Rotate for better visibility if needed
 
     if orientation == "vertical":
         ax.bar(categories, values, label='Sample Vertical Bar', color='none' if random.random() < 0.2 else color,
@@ -165,7 +165,7 @@ def random_generate_bar_chart(categories, values, x_title=None, y_title=None, gr
     theme = np.random.choice(['dark_background', 'default', 'grayscale', 'dark_gray'], p=[0.2, 0.5, 0.2, 0.1])
     if theme == 'dark_background' and color == "black":
         theme = 'default'
-    orientation = "horizontal" if random.random() < 0.1 else "vertical"  # 10% chance for horizontal
+    orientation = "horizontal" if random.random() < 1 else "vertical"  # 10% chance for horizontal
     if os.sep in name:
         name = os.path.join(os.path.dirname(name), f"{orientation}_{os.path.basename(name)}")
     else:
@@ -181,7 +181,7 @@ def random_generate_bar_chart(categories, values, x_title=None, y_title=None, gr
         return data_dict, final_name
     os.remove(f"{final_name}.jpg")
     os.remove(f"{final_name}.json")
-    figsize_w = random.randint(figsize_w + 2, 14)
+    figsize_w = random.randint(figsize_w + 1, 14)
     figsize_h = random.randint(max(5, int(figsize_w / 3.7)), min(int(figsize_w * 1.5), 9))
     figsize = (figsize_w, figsize_h)
     if random.random() < 0.5 and figsize_w < 10:
@@ -362,7 +362,8 @@ def postprocess_data_gen(data_dict, final_name, data_list):
     return data_dict, data_list
 
 
-def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat", "dot", "bar"], show=False):
+def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat", "dot", "bar"], show=False,
+                     clear_list=False):
     os.makedirs(generated_imgs, exist_ok=True)
     data_list = np.array([])
     for i in tqdm(range(n)):
@@ -406,17 +407,29 @@ def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat
                 data_dict, final_name = random_generate_dot_plot(x_data_dynamic_arr, np.random.randint(1, 13, 10),
                                                                  name=os.path.join(generated_imgs, "dot"), **titels,
                                                                  show=show)
-                data_dict, data_list = postprocess_data_gen(data_dict, final_name, data_list)
-        except:
+                if data_dict:
+                    data_dict, data_list = postprocess_data_gen(data_dict, final_name, data_list)
+            if clear_list:
+                data_list = np.array([])
+        except Exception as err:
+            print(err)
             print(x_data_dynamic)
             print(y_data_dynamic)
     return data_list
 
 
 if __name__ == "__main__":
-    data_series_path = r"D:\MGA\data_series.csv"
-    data_series = preprocess_data_series(pd.read_csv(data_series_path))
+    # data_series_path = r"D:\MGA\data_series.csv"
+    # data_series = preprocess_data_series(pd.read_csv(data_series_path))
     generated_imgs = r"D:\MGA\gen"
-    data_list = generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat", "dot", "bar"], show=False)
-    df = pd.DataFrame.from_records(data_list)
-    df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
+    # data_list = generate_n_plots(data_series, generated_imgs, n=100, data_types=["line", "scat", "dot", "bar"],
+    #                              show=True, clear_list=True)
+    # df = pd.DataFrame.from_records(data_list)
+    # df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
+
+    # x_data_dynamic, y_data_dynamic, titels = generate_dynamic_data_point(data_series)
+    data_dict, final_name = random_generate_bar_chart(["A", "B", "C", "D", "E", "F"], [1,2,3,4,5,6],
+                                                      name=os.path.join(generated_imgs, "bar"))
+    img_name = os.path.join(generated_imgs, f"{final_name}.jpg")
+    boxes = get_bboxes(data_dict)
+    plot_image_with_boxes(img_name, boxes, jupyter=False)
