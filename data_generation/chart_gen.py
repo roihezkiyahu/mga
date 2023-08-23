@@ -39,7 +39,7 @@ def random_generate_line_chart(x, y, x_title=None, y_title=None, graph_title=Non
     grid_style_choices = ["both", "x", "y", "none"]
     theme_choices = ['dark_background', 'default', 'grayscale', 'dark_gray']
     line_color = random.choice(color_palette)
-    grid_style = np.random.choice(grid_style_choices, p=[0.2, 0.2, 0.2, 0.4])
+    grid_style = np.random.choice(grid_style_choices, p=[0.1, 0.1, 0.1, 0.7])
     theme = np.random.choice(theme_choices, p=[0.2, 0.5, 0.2, 0.1])
     if theme == 'dark_background' and line_color == "black":
         theme = 'default'
@@ -107,7 +107,7 @@ def generate_scatter_chart(x, y, color='blue', grid_style="both", theme="white",
 def random_generate_scatter_chart(x, y, x_title=None, y_title=None, graph_title=None, name=None, show=True):
     color_palette = ['blue', 'red', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta', 'brown', 'pink', "black"]
     color = random.choice(color_palette)
-    grid_style = np.random.choice(["both", "x", "y", "none"], p=[0.2, 0.2, 0.2, 0.4])
+    grid_style = np.random.choice(["both", "x", "y", "none"], p=[0.1, 0.1, 0.1, 0.7])
     theme = np.random.choice(['dark_background', 'default', 'grayscale', 'dark_gray'], p=[0.2, 0.5, 0.2, 0.1])
     show_regression_line = np.random.choice([True, False], p=[0.1, 0.9])
     if theme == 'dark_background' and color == "black":
@@ -161,7 +161,7 @@ def generate_bar_chart(categories, values, color='blue', grid_style="both", them
 def random_generate_bar_chart(categories, values, x_title=None, y_title=None, graph_title=None, name=None, show=True):
     color_palette = ['blue', 'red', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta', 'brown', 'pink', "black"]
     color = random.choice(color_palette)
-    grid_style = np.random.choice(["both", "x", "y", "none"], p=[0.2, 0.2, 0.2, 0.4])
+    grid_style = np.random.choice(["both", "x", "y", "none"], p=[0.1, 0.1, 0.1, 0.7])
     theme = np.random.choice(['dark_background', 'default', 'grayscale', 'dark_gray'], p=[0.2, 0.5, 0.2, 0.1])
     if theme == 'dark_background' and color == "black":
         theme = 'default'
@@ -399,6 +399,10 @@ def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat
                                                                    name=os.path.join(generated_imgs, "line"), **titels,
                                                                    show=show)
                 data_dict, data_list = postprocess_data_gen(data_dict, final_name, data_list)
+                # if show:
+                #     img_name = os.path.join(generated_imgs, f"{final_name}.jpg")
+                #     boxes = get_bboxes(data_dict)
+                #     plot_image_with_boxes(img_name, boxes, jupyter=False)
 
             if len(x_data_dynamic_arr) > 10:
                 start_index = random.randint(0, len(x_data_dynamic_arr) - 10)
@@ -422,12 +426,15 @@ if __name__ == "__main__":
     # data_series_path = r"D:\MGA\data_series.csv"
     # data_series = preprocess_data_series(pd.read_csv(data_series_path))
     generated_imgs = r"D:\MGA\gen"
-    # data_list = generate_n_plots(data_series, generated_imgs, n=100, data_types=["line", "scat", "dot", "bar"],
-    #                              show=True, clear_list=True)
+    # data_types = ["line"]# ["line", "scat", "dot", "bar"]
+    # data_list = generate_n_plots(data_series, generated_imgs, n=10000, data_types=data_types,
+    #                              show=False, clear_list=True)
     # df = pd.DataFrame.from_records(data_list)
     # df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
-
+    #
     # x_data_dynamic, y_data_dynamic, titels = generate_dynamic_data_point(data_series)
+
+
     data_dict, final_name = random_generate_bar_chart(["A", "B", "C", "D", "E", "F"], [1,2,3,4,5,6],
                                                       name=os.path.join(generated_imgs, "bar"))
     img_name = os.path.join(generated_imgs, f"{final_name}.jpg")

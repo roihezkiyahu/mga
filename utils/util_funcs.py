@@ -241,10 +241,14 @@ def load_bounding_boxes(label_path):
     return bounding_boxes
 
 
-def copy_files(file_list, source_img, source_lbl, dest_img, dest_lbl):
+def copy_files(file_list, source_img, source_lbl, dest_img, dest_lbl, valid_names=[]):
     for f in tqdm(file_list):
-        if f.split(".")[0] in outlier_images:
+        f_name = f.split(".")[0]
+        if f_name in outlier_images:
             continue
+        if valid_names:
+            if f_name not in valid_names:
+                continue
         if os.path.exists(os.path.join(source_img, f)) and os.path.exists(
                 os.path.join(source_lbl, f.replace('.jpg', '.txt'))):
             shutil.copy(os.path.join(source_img, f), os.path.join(dest_img, f))
@@ -254,7 +258,7 @@ def copy_files(file_list, source_img, source_lbl, dest_img, dest_lbl):
             print("no both for file: ", f)
 
 
-def sort_yolo_folders(tr_img, tr_labels):
+def sort_yolo_folders(tr_img, tr_labels, valid_names=[]):
     random.seed(42)
     base_dir = 'dataset'
     subfolders = ['train', 'valid', 'test']

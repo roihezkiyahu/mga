@@ -1,3 +1,5 @@
+import random
+
 import matplotlib.pyplot as plt
 import numpy as np
 import json
@@ -22,11 +24,11 @@ def filter_texts(texts, plot_bbox, pixel_dims):
     return [text for text in texts if is_inside_bbox(text['polygon'], plot_bbox, pixel_dims)]
 
 
-def bbox_to_polygon(bbox, pixel_dims, fig_inch_size, shift = 2):
+def bbox_to_polygon(bbox, pixel_dims, fig_inch_size, shift = 1):
     return {
         'x0': bbox.x0*pixel_dims[0]-shift,
-        'x1': bbox.x1*pixel_dims[0],
-        'x2': bbox.x1*pixel_dims[0],
+        'x1': bbox.x1*pixel_dims[0]+shift,
+        'x2': bbox.x1*pixel_dims[0]+shift,
         'x3': bbox.x0*pixel_dims[0]-shift,
         'y0': (fig_inch_size[1] - bbox.y1)*pixel_dims[1]-shift,
         'y1': (fig_inch_size[1] - bbox.y1)*pixel_dims[1]-shift,
@@ -103,7 +105,11 @@ def extract_ax_data(ax, fig, x, y, name=None, data_type="visual-elements.lines",
     x_ticks_location = filter_ticks(x_ticks_location, bbox.x0 * pixel_dims[0], bbox.x1 * pixel_dims[0])
     y_ticks_location = filter_ticks(y_ticks_location, bbox.y0 * pixel_dims[1], bbox.y1 * pixel_dims[1])
     ar = fig_inch_size[0] / fig_inch_size[1] if data_type == 'visual-elements.dot points' else 3
-    return {
+    if random.random() < 0.75:
+        ax.tick_params(axis='x', length=0)
+    if random.random() < 0.75:
+        ax.tick_params(axis='y', length=0)
+    data_dict = {
         'text': filter_texts(extract_texts(ax, fig), plot_bbox, [fig.dpi, fig.dpi]),
         data_type: data_series_locations,
         'data-series': [{"x": x_val, "y": y_val} for x_val, y_val in zip(x, y)],
@@ -119,7 +125,8 @@ def extract_ax_data(ax, fig, x, y, name=None, data_type="visual-elements.lines",
         'axes.y-axis.ticks': [{"id": i, "tick_pt": {"x": bbox.x0 * pixel_dims[0], "y": loc}}
                               for i, loc in enumerate(y_ticks_location)],
         'name': name
-    }
+    }.copy()
+    return data_dict
 
 
 def set_style(theme):
@@ -162,11 +169,11 @@ def set_x_ticks(ax, x, rotate):
 
 
 def set_ax_loc_rotate(ax, rotate):
-    rand_noise = np.random.uniform(0.075, 0.2)
+    rand_noise = np.random.uniform(0.1, 0.15)
     ax.set_position([rand_noise, rand_noise, 1 - rand_noise * 2, 1 - rand_noise * 2])
     if rotate:
         ax.margins(0.05)
-        ax.set_position([0.1 + rand_noise, 0.1 + rand_noise, 0.8 - rand_noise * 2, 0.8 - rand_noise * 2])
+        ax.set_position([0.075 + rand_noise, 0.075 + rand_noise, 0.85 - rand_noise * 2, 0.85 - rand_noise * 2])
 
 
 def default_serialize(obj):
@@ -264,6 +271,8 @@ def extract_titles(data):
     # Add chart title if it exists
     if chart_title:
         titles['graph_title'] = chart_title[1]
+        if len(titles['graph_title']) > 50:
+            titles['graph_title'] = titles['graph_title'][:50] + "\n" + titles['graph_title'][50:]
 
     return titles
 
