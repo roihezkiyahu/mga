@@ -278,11 +278,11 @@ def sort_yolo_folders(tr_img, tr_labels, valid_names=[]):
 
     # Copy files to the new directory structure
     copy_files(train_images, tr_img, tr_labels, os.path.join(base_dir, 'train', 'images'),
-               os.path.join(base_dir, 'train', 'labels'))
+               os.path.join(base_dir, 'train', 'labels'), valid_names)
     copy_files(valid_images, tr_img, tr_labels, os.path.join(base_dir, 'valid', 'images'),
-               os.path.join(base_dir, 'valid', 'labels'))
+               os.path.join(base_dir, 'valid', 'labels'), valid_names)
     copy_files(test_images, tr_img, tr_labels, os.path.join(base_dir, 'test', 'images'),
-               os.path.join(base_dir, 'test', 'labels'))
+               os.path.join(base_dir, 'test', 'labels'), valid_names)
 
 
 def get_random_image(dir_path):
