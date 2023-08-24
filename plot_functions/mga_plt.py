@@ -29,7 +29,7 @@ color_mapping = {
     "orange": (255, 165, 0)
 }
 
-class_2_color = {box_class: color_mapping[color] for box_class, color in zip(box_classes, colors_list)}
+class_2_color_cv = {box_class: color_mapping[color] for box_class, color in zip(box_classes, colors_list)}
 
 
 def plot_image_with_boxes(img_path, boxes, jupyter=True):
@@ -39,7 +39,7 @@ def plot_image_with_boxes(img_path, boxes, jupyter=True):
     for box in boxes:
         top_left = (int(box["x"] - box["width"] / 2), int(box["y"] - box["height"] / 2))
         bottom_right = (int(box["x"] + box["width"] / 2), int(box["y"] + box["height"] / 2))
-        color = class_2_color[box['class']]
+        color = class_2_color_cv[box['class']]
         color = tuple([int(c * 255) for c in color])  # Convert color to range [0, 255]
         cv2.rectangle(img, top_left, bottom_right, color, 1)
 

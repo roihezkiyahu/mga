@@ -8,6 +8,14 @@ import re
 from utils.util_funcs import safe_literal_eval
 
 
+def is_numeric(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+
 def filter_ticks(ticks, lower_bound, upper_bound):
     """Filter out ticks that are outside the given bounds."""
     return [tick for tick in ticks if lower_bound <= tick <= upper_bound]
@@ -17,11 +25,13 @@ def filter_texts(texts, plot_bbox, pixel_dims):
     """
     Filters out texts whose polygons are not entirely within the plot bounding box.
     """
-    def is_inside_bbox(polygon, bbox, pixel_dims):
+    def is_inside_bbox(polygon, bbox, pixel_dims, text):
         """Check if a polygon is inside a bounding box."""
+        if not is_numeric(text):
+            return True
         return (((polygon['x0']+polygon['x1'])/2 <= bbox.x1*pixel_dims[1] and (polygon['x0']+polygon['x1'])/2 >= bbox.x0*pixel_dims[1]-4) or
                 ((polygon['y2']+polygon['y0'])/2 <= bbox.y1*pixel_dims[0]+8 and (polygon['y2']+polygon['y0'])/2 >= bbox.y0*pixel_dims[0]+1))
-    return [text for text in texts if is_inside_bbox(text['polygon'], plot_bbox, pixel_dims)]
+    return [text for text in texts if is_inside_bbox(text['polygon'], plot_bbox, pixel_dims, text['text'])]
 
 
 def bbox_to_polygon(bbox, pixel_dims, fig_inch_size, shift = 1):

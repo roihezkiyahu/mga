@@ -6,6 +6,8 @@ import random
 from data_generation.gen_ax_fig import *
 from plot_functions.mga_plt import plot_image_with_boxes
 from utils.util_funcs import get_bboxes, safe_literal_eval, annotation_to_labels
+import matplotlib.transforms as mtransforms
+
 
 
 def generate_line_chart(x, y, line_color='blue', grid_style="both", x_title=None, y_title=None, graph_title=None,
@@ -18,6 +20,13 @@ def generate_line_chart(x, y, line_color='blue', grid_style="both", x_title=None
     ax.plot(x, y, color=line_color, linestyle=line_style, marker=marker_style)
     ax.set_xticks(x)
     ax.set_xticklabels(x, rotation=0 if not rotate else 45, ha='right' if rotate else 'center')  # Rotate for better visibility if needed
+    if rotate:
+        labels = ax.get_xticklabels()
+        offset = mtransforms.ScaledTranslation((np.random.uniform(1, 2)*figsize[0]/ax.figure.get_dpi()), 0, ax.figure.dpi_scale_trans)
+        for label in labels:
+            label.set_transform(label.get_transform() + offset)
+
+
     set_ax_loc_rotate(ax, rotate)
     data_dict = {
         'chart-type': 'line',
@@ -58,7 +67,7 @@ def random_generate_line_chart(x, y, x_title=None, y_title=None, graph_title=Non
     os.remove(f"{final_name}.json")
     if figsize_w < 10:
         figsize_w = random.randint(figsize_w + 2, 13)
-        figsize_h = random.randint(max(3, int(figsize_w / 3.7)), min(int(figsize_w * 1.5), 9))
+        figsize_h = random.randint(max(5, int(figsize_w / 3)), min(int(figsize_w * 1.5), 9))
         figsize = (figsize_w, figsize_h)
     if random.random() < 0.5:
         data_dict, final_name = generate_line_chart(x, y, line_color=line_color, grid_style=grid_style, x_title=x_title,
@@ -78,7 +87,7 @@ def random_generate_line_chart(x, y, x_title=None, y_title=None, graph_title=Non
 def generate_scatter_chart(x, y, color='blue', grid_style="both", theme="white", show_regression_line=False,
                            x_title=None, y_title=None, graph_title=None, figsize=(6, 4), name=None, show=True):
     set_style(theme)
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=figsize)
     set_grid(grid_style, ax)
     set_title(ax, x_title, y_title, graph_title)
     ax.scatter(x, y, label='Sample Scatter', color=color, marker='o')
@@ -132,6 +141,11 @@ def generate_bar_chart(categories, values, color='blue', grid_style="both", them
     set_ax_loc_rotate(ax, rotate)
     if rotate:
         ax.set_xticklabels(categories, rotation=45, ha='right')  # Rotate for better visibility if needed
+        labels = ax.get_xticklabels()
+        offset = mtransforms.ScaledTranslation((np.random.uniform(1, 2)*figsize[0]/ax.figure.get_dpi()), 0, ax.figure.dpi_scale_trans)
+
+        for label in labels:
+            label.set_transform(label.get_transform() + offset)
 
     if orientation == "vertical":
         ax.bar(categories, values, label='Sample Vertical Bar', color='none' if random.random() < 0.2 else color,
@@ -182,7 +196,7 @@ def random_generate_bar_chart(categories, values, x_title=None, y_title=None, gr
     os.remove(f"{final_name}.jpg")
     os.remove(f"{final_name}.json")
     figsize_w = random.randint(figsize_w + 1, 14)
-    figsize_h = random.randint(max(5, int(figsize_w / 3.7)), min(int(figsize_w * 1.5), 9))
+    figsize_h = random.randint(max(5, int(figsize_w / 3)), min(int(figsize_w * 1.5), 9))
     figsize = (figsize_w, figsize_h)
     if random.random() < 0.5 and figsize_w < 10:
         data_dict, final_name = generate_bar_chart(categories, values, color=color, grid_style=grid_style, theme=theme,
@@ -399,10 +413,10 @@ def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat
                                                                    name=os.path.join(generated_imgs, "line"), **titels,
                                                                    show=show)
                 data_dict, data_list = postprocess_data_gen(data_dict, final_name, data_list)
-                # if show:
-                #     img_name = os.path.join(generated_imgs, f"{final_name}.jpg")
-                #     boxes = get_bboxes(data_dict)
-                #     plot_image_with_boxes(img_name, boxes, jupyter=False)
+                if show:
+                    img_name = os.path.join(generated_imgs, f"{final_name}.jpg")
+                    boxes = get_bboxes(data_dict)
+                    plot_image_with_boxes(img_name, boxes, jupyter=False)
 
             if len(x_data_dynamic_arr) > 10:
                 start_index = random.randint(0, len(x_data_dynamic_arr) - 10)
@@ -423,20 +437,20 @@ def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat
 
 
 if __name__ == "__main__":
-    # data_series_path = r"D:\MGA\data_series.csv"
-    # data_series = preprocess_data_series(pd.read_csv(data_series_path))
-    generated_imgs = r"D:\MGA\gen"
-    # data_types = ["line"]# ["line", "scat", "dot", "bar"]
-    # data_list = generate_n_plots(data_series, generated_imgs, n=10000, data_types=data_types,
-    #                              show=False, clear_list=True)
+    data_series_path = r"D:\MGA\data_series.csv"
+    data_series = preprocess_data_series(pd.read_csv(data_series_path))
+    generated_imgs = r"D:\MGA\gen_line"
+    data_types = ["line"]# ["line", "scat", "dot", "bar"]
+    data_list = generate_n_plots(data_series, generated_imgs, n=1000, data_types=data_types,
+                                 show=False, clear_list=True)
     # df = pd.DataFrame.from_records(data_list)
     # df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
     #
     # x_data_dynamic, y_data_dynamic, titels = generate_dynamic_data_point(data_series)
 
 
-    data_dict, final_name = random_generate_bar_chart(["A", "B", "C", "D", "E", "F"], [1,2,3,4,5,6],
-                                                      name=os.path.join(generated_imgs, "bar"))
-    img_name = os.path.join(generated_imgs, f"{final_name}.jpg")
-    boxes = get_bboxes(data_dict)
-    plot_image_with_boxes(img_name, boxes, jupyter=False)
+    # data_dict, final_name = random_generate_bar_chart(["A", "B", "C", "D", "E", "F"], [1,2,3,4,5,6],
+    #                                                   name=os.path.join(generated_imgs, "bar"))
+    # img_name = os.path.join(generated_imgs, f"{final_name}.jpg")
+    # boxes = get_bboxes(data_dict)
+    # plot_image_with_boxes(img_name, boxes, jupyter=False)

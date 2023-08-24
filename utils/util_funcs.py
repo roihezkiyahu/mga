@@ -59,7 +59,7 @@ def create_dataframe(annotations_directory):
     return df
 
 
-def get_bboxes(row, width=12):
+def get_bboxes(row, width=12, gen=False):
     boxes = []
     # Plot bounding box
     boxes.append({
@@ -92,7 +92,7 @@ def get_bboxes(row, width=12):
     # Scatter points - float
     scatter_points = safe_literal_eval(row["visual-elements.scatter points"])
     if scatter_points:
-        if len(scatter_points) > 1:
+        if len(scatter_points) > 1 and gen:
             for point in scatter_points:
                 boxes.append({
                     "class": "scatter_point",
@@ -132,7 +132,7 @@ def get_bboxes(row, width=12):
     # This assumes that row["visual-elements.dot points"] is a DataFrame
     elements_dots = safe_literal_eval(row["visual-elements.dot points"])
     if elements_dots:
-        if len(elements_dots) > 1:
+        if len(elements_dots) > 1 and gen:
             res_frame = pd.DataFrame(elements_dots)
         else:
             res_frame = pd.DataFrame(elements_dots[0])
@@ -145,18 +145,21 @@ def get_bboxes(row, width=12):
             last_x_min = valid_range["x"].max()
             if np.isnan(x):
                 break
-            dot_size = valid_range["y"].max() - (row["plot-bb.y0"] + row["plot-bb.height"])
+            if len(valid_range) > 1:
+                dot_size = np.nanmedian(np.diff(valid_range["y"].sort_values()))
+            else:
+                dot_size = ((row["plot-bb.y0"] + row["plot-bb.height"]) - valid_range["y"].max())*2
             boxes.append({
                 "class": "dot_point",
                 "x": x,
-                "y": y,
+                "y": y-dot_size/2,
                 "width": width,
                 "height": width
             })
 
     elements_lines = safe_literal_eval(row["visual-elements.lines"])
     if elements_lines:
-        if len(elements_lines) > 1:
+        if len(elements_lines) > 1 and gen:
             for line in elements_lines:
                 boxes.append({
                     "class": "line_point",
@@ -200,7 +203,7 @@ def create_bounding_boxes(df, width=12):
     return bounding_boxes
 
 
-def annotation_to_labels(image_path, chart_boxes, is_box=True, labels_folder="labels"):
+def annotation_to_labels(image_path, chart_boxes, is_box=True, labels_folder="labels", img_folder=""):
     if not is_box:
         chart_boxes = get_bboxes(chart_boxes, width=12)
     image = cv2.imread(image_path)
@@ -220,6 +223,8 @@ def annotation_to_labels(image_path, chart_boxes, is_box=True, labels_folder="la
                 box["height"] = 0.02 * width / height  # box["height"]/height
             box["class"] = class_box_to_idx[box["class"]]
             f.write(f"{box['class']} {box['x']} {box['y']} {box['width']} {box['height']}\n")
+    if img_folder != "":
+        cv2.imwrite(os.path.join(img_folder, file_name), image)
 
 
 def load_bounding_boxes(label_path):
