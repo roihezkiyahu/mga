@@ -203,26 +203,31 @@ def create_bounding_boxes(df, width=12):
     return bounding_boxes
 
 
-def annotation_to_labels(image_path, chart_boxes, is_box=True, labels_folder="labels", img_folder=""):
+def annotation_to_labels(image_path, chart_boxes, is_box=True, labels_folder="labels", img_folder="", gen=False):
     if not is_box:
-        chart_boxes = get_bboxes(chart_boxes, width=12)
+        chart_boxes = get_bboxes(chart_boxes, width=12, gen=gen)
     image = cv2.imread(image_path)
+    if isinstance(image, type(None)):
+        print(image_path, " is None")
+        return
     height, width = image.shape[:2]
     file_name = os.path.basename(image_path)
     os.makedirs(labels_folder, exist_ok=True)
-
-    with open(os.path.join(labels_folder, file_name.split(".")[0] + '.txt'), 'w') as f:
-        for box in chart_boxes:
-            box["x"] = (box["x"]) / width
-            box["y"] = (box["y"]) / height
-            if box["class"] in ["plot", "tick_label"]:
-                box["width"] = box["width"] / width
-                box["height"] = box["height"] / height
-            else:
-                box["width"] = 0.02  # box["width"]/width
-                box["height"] = 0.02 * width / height  # box["height"]/height
-            box["class"] = class_box_to_idx[box["class"]]
-            f.write(f"{box['class']} {box['x']} {box['y']} {box['width']} {box['height']}\n")
+    if not is_box:
+        with open(os.path.join(labels_folder, file_name.split(".")[0] + '.txt'), 'w') as f:
+            for box in chart_boxes:
+                box["x"] = (box["x"]) / width
+                box["y"] = (box["y"]) / height
+                if box["class"] in ["plot", "tick_label"]:
+                    box["width"] = box["width"] / width
+                    box["height"] = box["height"] / height
+                else:
+                    box["width"] = 0.02  # box["width"]/width
+                    box["height"] = 0.02 * width / height  # box["height"]/height
+                box["class"] = class_box_to_idx[box["class"]]
+                f.write(f"{box['class']} {box['x']} {box['y']} {box['width']} {box['height']}\n")
+    else:
+        shutil.copy(chart_boxes, os.path.join(labels_folder, file_name.split(".")[0] + '.txt'))
     if img_folder != "":
         cv2.imwrite(os.path.join(img_folder, file_name), image)
 

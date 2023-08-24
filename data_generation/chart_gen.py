@@ -49,11 +49,11 @@ def random_generate_line_chart(x, y, x_title=None, y_title=None, graph_title=Non
     theme_choices = ['dark_background', 'default', 'grayscale', 'dark_gray']
     line_color = random.choice(color_palette)
     grid_style = np.random.choice(grid_style_choices, p=[0.1, 0.1, 0.1, 0.7])
-    theme = np.random.choice(theme_choices, p=[0.2, 0.5, 0.2, 0.1])
+    theme = np.random.choice(theme_choices, p=[0.1, 0.6, 0.2, 0.1])
     if theme == 'dark_background' and line_color == "black":
         theme = 'default'
     line_style = "-"
-    marker_style = np.random.choice(['o', 'x', None], p=[0.25, 0.25, 0.5])
+    marker_style = np.random.choice(['o', 'x', None], p=[0.2, 0.2, 0.6])
     figsize_w = random.randint(4, 13)
     figsize_h = random.randint(max(4, int(figsize_w / 3.7)), min(int(figsize_w * 1.5), 9))
     figsize = (figsize_w, figsize_h)
@@ -117,7 +117,7 @@ def random_generate_scatter_chart(x, y, x_title=None, y_title=None, graph_title=
     color_palette = ['blue', 'red', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta', 'brown', 'pink', "black"]
     color = random.choice(color_palette)
     grid_style = np.random.choice(["both", "x", "y", "none"], p=[0.1, 0.1, 0.1, 0.7])
-    theme = np.random.choice(['dark_background', 'default', 'grayscale', 'dark_gray'], p=[0.2, 0.5, 0.2, 0.1])
+    theme = np.random.choice(['dark_background', 'default', 'grayscale', 'dark_gray'], p=[0.1, 0.6, 0.2, 0.1])
     show_regression_line = np.random.choice([True, False], p=[0.1, 0.9])
     if theme == 'dark_background' and color == "black":
         theme = 'default'
@@ -302,25 +302,25 @@ def gen_all_4(save_loc = r"D:\mga_outputs"):
                                                        name=os.path.join(save_loc, "line"),
                                                        x_title="x_title", y_title="y_title", graph_title="graph_title")
     img_name = os.path.join(save_loc, f"{final_name}.jpg")
-    boxes = get_bboxes(data_dict)
+    boxes = get_bboxes(data_dict, gen=True)
     plot_image_with_boxes(img_name, boxes, jupyter=False)
 
     data_dict, final_name = random_generate_scatter_chart(np.random.rand(10) * 10, np.random.rand(10) * 10,
                                                           name=os.path.join(save_loc, "scat"))
     img_name = os.path.join(save_loc, f"{final_name}.jpg")
-    boxes = get_bboxes(data_dict)
+    boxes = get_bboxes(data_dict, gen=True)
     plot_image_with_boxes(img_name, boxes, jupyter=False)
 
     data_dict, final_name = random_generate_bar_chart(['A', 'B', 'C', 'D'], [10, 15, 7, 12],
                                                       name=os.path.join(save_loc, "bar"))
     img_name = os.path.join(save_loc, f"{final_name}.jpg")
-    boxes = get_bboxes(data_dict)
+    boxes = get_bboxes(data_dict, gen=True)
     plot_image_with_boxes(img_name, boxes, jupyter=False)
 
     data_dict, final_name = random_generate_dot_plot(np.arange(1, 6), [1, 5, 0, 6, 6],
                                                      name=os.path.join(save_loc, "dot"))
     img_name = os.path.join(save_loc, f"{final_name}.jpg")
-    boxes = get_bboxes(data_dict)
+    boxes = get_bboxes(data_dict, gen=True)
     plot_image_with_boxes(img_name, boxes, jupyter=False)
 
 
@@ -372,7 +372,7 @@ def postprocess_data_gen(data_dict, final_name, data_list):
     data_dict["name"] = os.path.basename(final_name)
     data_list = np.append(data_list, data_dict)
     annotation_to_labels(os.path.join(generated_imgs, f"{final_name}.jpg"),
-                         data_dict, False, generated_imgs)
+                         data_dict, False, generated_imgs, gen=True)
     return data_dict, data_list
 
 
@@ -415,7 +415,7 @@ def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat
                 data_dict, data_list = postprocess_data_gen(data_dict, final_name, data_list)
                 if show:
                     img_name = os.path.join(generated_imgs, f"{final_name}.jpg")
-                    boxes = get_bboxes(data_dict)
+                    boxes = get_bboxes(data_dict, gen=True)
                     plot_image_with_boxes(img_name, boxes, jupyter=False)
 
             if len(x_data_dynamic_arr) > 10:
@@ -441,7 +441,7 @@ if __name__ == "__main__":
     data_series = preprocess_data_series(pd.read_csv(data_series_path))
     generated_imgs = r"D:\MGA\gen_line"
     data_types = ["line"]# ["line", "scat", "dot", "bar"]
-    data_list = generate_n_plots(data_series, generated_imgs, n=1000, data_types=data_types,
+    data_list = generate_n_plots(data_series, generated_imgs, n=10000, data_types=data_types,
                                  show=False, clear_list=True)
     # df = pd.DataFrame.from_records(data_list)
     # df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
