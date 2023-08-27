@@ -29,12 +29,14 @@ def filter_texts(texts, plot_bbox, pixel_dims):
         """Check if a polygon is inside a bounding box."""
         if not is_numeric(text):
             return True
-        return (((polygon['x0']+polygon['x1'])/2 <= bbox.x1*pixel_dims[1] and (polygon['x0']+polygon['x1'])/2 >= bbox.x0*pixel_dims[1]-4) or
-                ((polygon['y2']+polygon['y0'])/2 <= bbox.y1*pixel_dims[0]+8 and (polygon['y2']+polygon['y0'])/2 >= bbox.y0*pixel_dims[0]+1))
+        return (((polygon['x0']+polygon['x1'])/2 <= bbox.x1*pixel_dims[0] and
+                 (polygon['x0']+polygon['x1'])/2 >= bbox.x0*pixel_dims[0]) or
+                (polygon['y0'] <= bbox.y1*pixel_dims[1] and
+                 polygon['y2'] >= bbox.y0*pixel_dims[1]))
     return [text for text in texts if is_inside_bbox(text['polygon'], plot_bbox, pixel_dims, text['text'])]
 
 
-def bbox_to_polygon(bbox, pixel_dims, fig_inch_size, shift = 1):
+def bbox_to_polygon(bbox, pixel_dims, fig_inch_size, shift=1):
     return {
         'x0': bbox.x0*pixel_dims[0]-shift,
         'x1': bbox.x1*pixel_dims[0]+shift,
@@ -179,11 +181,11 @@ def set_x_ticks(ax, x, rotate):
 
 
 def set_ax_loc_rotate(ax, rotate):
-    rand_noise = np.random.uniform(0.1, 0.15)
-    ax.set_position([rand_noise, rand_noise, 1 - rand_noise * 2, 1 - rand_noise * 2])
+    rand_noise_x = np.random.uniform(0.1, 0.125)
+    rand_noise_y = np.random.uniform(0.075, 0.1)
+    ax.set_position([rand_noise_x, rand_noise_y, 1 - rand_noise_x*1.25, 1 - rand_noise_y * 2])
     if rotate:
-        ax.margins(0.05)
-        ax.set_position([0.075 + rand_noise, 0.075 + rand_noise, 0.85 - rand_noise * 2, 0.85 - rand_noise * 2])
+        ax.set_position([0.075 + rand_noise_x, 0.075 + rand_noise_y, 0.85 - rand_noise_x * 2, 0.85 - rand_noise_y * 2])
 
 
 def default_serialize(obj):

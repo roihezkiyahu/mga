@@ -13,6 +13,7 @@ import matplotlib.transforms as mtransforms
 def generate_line_chart(x, y, line_color='blue', grid_style="both", x_title=None, y_title=None, graph_title=None,
                         theme="default",
                         line_style='-', marker_style=None, figsize=(6, 4), name=None, rotate=False, show=True):
+    # TODO add option for random data points addition (just for plot not sieries) for numeric  data
     set_style(theme)
     fig, ax = plt.subplots(figsize=figsize)
     set_grid(grid_style, ax)
@@ -437,12 +438,12 @@ def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat
 
 
 if __name__ == "__main__":
-    data_series_path = r"D:\MGA\data_series.csv"
-    data_series = preprocess_data_series(pd.read_csv(data_series_path))
+    # data_series_path = r"D:\MGA\data_series.csv"
+    # data_series = preprocess_data_series(pd.read_csv(data_series_path))
     generated_imgs = r"D:\MGA\gen_line"
-    data_types = ["line"]# ["line", "scat", "dot", "bar"]
-    data_list = generate_n_plots(data_series, generated_imgs, n=10000, data_types=data_types,
-                                 show=False, clear_list=True)
+    # data_types = ["line"]# ["line", "scat", "dot", "bar"]
+    # data_list = generate_n_plots(data_series, generated_imgs, n=10000, data_types=data_types,
+    #                              show=False, clear_list=True)
     # df = pd.DataFrame.from_records(data_list)
     # df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
     #
@@ -454,3 +455,10 @@ if __name__ == "__main__":
     # img_name = os.path.join(generated_imgs, f"{final_name}.jpg")
     # boxes = get_bboxes(data_dict)
     # plot_image_with_boxes(img_name, boxes, jupyter=False)
+
+    data_dict, final_name = random_generate_line_chart(np.linspace(0, 100, 10).astype(int), np.sin(np.linspace(0, 10, 10)),
+                                                       name=os.path.join(generated_imgs, "line"),
+                                                       x_title="x_title", y_title="y_title", graph_title="graph_title")
+    img_name = os.path.join(generated_imgs, f"{final_name}.jpg")
+    boxes = get_bboxes(data_dict, gen=True)
+    plot_image_with_boxes(img_name, boxes, jupyter=False)
