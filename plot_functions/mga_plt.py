@@ -15,7 +15,7 @@ from IPython.display import display
 from tqdm import tqdm
 import random
 from utils.util_funcs import load_bounding_boxes
-from data.global_data import box_classes, colors_list, chart_labels_2_indx, indx_2_chart_label
+from data.global_data import box_classes, colors_list, indx_2_chart_label
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 
