@@ -12,9 +12,11 @@ numerical values for dot plots
 
 ## classifier
 - ~~upload classifier model weights~~
-- code to load classifier
+- ~~code to load classifier~~
+- create function that takes a genereted images dir and create a dataframe passable to chart data loader
 - check classifier works on generated data
 - retrain if necessary
+
 
 ## detector
 - generate data to general detector

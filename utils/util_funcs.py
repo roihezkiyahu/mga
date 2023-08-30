@@ -306,3 +306,23 @@ def sort_yolo_folders(tr_img, tr_labels, valid_names=[], overwrite=False, base_d
 def get_random_image(dir_path):
     images = [os.path.join(dir_path, "images", f) for f in os.listdir(os.path.join(dir_path, "images")) if f.endswith('.jpg')]
     return random.choice(images)
+
+
+def get_label(img_name):
+    img_name = img_name.split(".")[0]
+    if "line" in img_name:
+        return "line"
+    if "scatter" in img_name or "scat" in img_name:
+        return "scatter"
+    if "vertical" in img_name:
+        return "vertical_bar"
+    if "horizontal" in img_name:
+        return "horizontal_bar"
+    if "dot" in img_name:
+        return "dot"
+
+def create_gen_df(gen_folder):
+    imgs_list_paths = [os.path.join(gen_folder, image) for image in os.listdir(gen_folder) if image.endswith(".jpg")]
+    chart_types = [get_label(image) for image in os.listdir(gen_folder) if image.endswith(".jpg")]
+    return pd.DataFrame({"image": imgs_list_paths,
+                 "chart-type": chart_types})

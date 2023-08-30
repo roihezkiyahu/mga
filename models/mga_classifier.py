@@ -32,7 +32,7 @@ from plot_functions.mga_plt import plot_misclassified_images
 
 
 class ChartDataLoader(Dataset):
-    def __init__(self, train_df, labels=[], transform=None):
+    def __init__(self, train_df, labels=[], transform=None, with_name=False):
         self.train_df = train_df
         if len(labels):
             self.labels_2_indx = dict(zip(labels, range(len(labels))))
@@ -41,6 +41,7 @@ class ChartDataLoader(Dataset):
             self.labels_2_indx = chart_labels_2_indx
             self.indx_2_label = indx_2_chart_label
         self.transform = transform
+        self.with_name = with_name
 
     def __getitem__(self, index):
         image_path = self.train_df["image"][index]
@@ -51,6 +52,8 @@ class ChartDataLoader(Dataset):
             image = self.transform(image)
 
         chart = self.labels_2_indx[chart_type]
+        if self.with_name:
+            return image, chart, os.path.basename(image_path)
         return image, chart
 
     def __len__(self):
@@ -202,14 +205,18 @@ def get_transforms(image_size,
     return transform_train, transform_val
 
 
-def evaluate_model(model, val_dataloader, acc_device, plot_misclassified=True):
+def evaluate_model(model, val_dataloader, acc_device, plot_misclassified=True, with_name=False):
     model.eval()
     all_preds = []
     all_labels = []
 
     with torch.no_grad():
         for batch in tqdm(val_dataloader):
-            inputs, labels = batch
+            if with_name:
+                inputs, labels, names = batch
+            else:
+                inputs, labels = batch
+                names = []
             inputs = inputs.to(acc_device)
             labels = labels.to(acc_device)
 
@@ -220,7 +227,7 @@ def evaluate_model(model, val_dataloader, acc_device, plot_misclassified=True):
             all_labels.extend(labels.cpu().numpy())
 
             if plot_misclassified:
-                plot_misclassified_images(inputs, labels, preds)
+                plot_misclassified_images(inputs, labels, preds, names)
 
     return all_preds, all_labels
 

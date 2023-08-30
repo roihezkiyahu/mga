@@ -153,12 +153,19 @@ def plot_metrics_from_version(version, base_path="/kaggle/working/logs/csv/light
     plt.show()
 
 
-def plot_misclassified_images(inputs, labels, preds):
+def plot_misclassified_images(inputs, labels, preds, names=[]):
     wrong_idxs = (preds != labels).nonzero(as_tuple=True)[0]
+    if len(wrong_idxs):
+        print(wrong_idxs)
     for idx in wrong_idxs:
-        plt.figure(figsize=(4,4))
-        plt.imshow(inputs[idx].cpu().permute(1,2,0).numpy(), cmap="gray")
-        plt.title(f"True: {indx_2_chart_label[labels[idx].item()]}, Predicted: {indx_2_chart_label[preds[idx].item()]}")
+        plt.figure(figsize=(4, 4))
+        plt.imshow(inputs[idx].cpu().permute(1, 2, 0).numpy(), cmap="gray")
+        if names:
+            plt.title(f"True: {indx_2_chart_label[labels[idx].item()]},"
+                      f" Predicted: {indx_2_chart_label[preds[idx].item()]} \n {names[idx]}")
+        else:
+            plt.title(
+                f"True: {indx_2_chart_label[labels[idx].item()]}, Predicted: {indx_2_chart_label[preds[idx].item()]}")
         plt.axis('off')
         plt.show()
 
