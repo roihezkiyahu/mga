@@ -1,6 +1,7 @@
 box_classes = ["plot", "x_tick", "y_tick", "scatter_point", "bar", "dot_point", "line_point", "tick_label"]
 colors_list = ["r", "blue", "blue", "black", "purple", "yellow", "green", "orange"]
 chart_labels = ["line", "scatter", "vertical_bar", "horizontal_bar", "dot"]
+
 chart_labels_2_indx = {class_name: idx for idx, class_name in enumerate(chart_labels)}
 indx_2_chart_label = {idx: class_name for idx, class_name in enumerate(chart_labels)}
 
