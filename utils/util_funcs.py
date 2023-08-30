@@ -252,24 +252,32 @@ def load_bounding_boxes(label_path):
     return bounding_boxes
 
 
-def copy_files(file_list, source_img, source_lbl, dest_img, dest_lbl, valid_names=[]):
+def copy_files(file_list, source_img, source_lbl, dest_img, dest_lbl, valid_names=[], overwrite=False):
     for f in tqdm(file_list):
         f_name = f.split(".")[0]
+
         if f_name in outlier_images:
             continue
-        if valid_names:
-            if f_name not in valid_names:
-                continue
-        if os.path.exists(os.path.join(source_img, f)) and os.path.exists(
-                os.path.join(source_lbl, f.replace('.jpg', '.txt'))):
-            shutil.copy(os.path.join(source_img, f), os.path.join(dest_img, f))
-            shutil.copy(os.path.join(source_lbl, f.replace('.jpg', '.txt')),
-                        os.path.join(dest_lbl, f.replace('.jpg', '.txt')))
-        else:
-            print("no both for file: ", f)
+
+        if valid_names and f_name not in valid_names:
+            continue
+
+        src_img_path = os.path.join(source_img, f)
+        src_lbl_path = os.path.join(source_lbl, f.replace('.jpg', '.txt'))
+        dest_img_path = os.path.join(dest_img, f)
+        dest_lbl_path = os.path.join(dest_lbl, f.replace('.jpg', '.txt'))
+
+        if os.path.exists(src_img_path) and (overwrite or not os.path.exists(dest_img_path)):
+            shutil.copy(src_img_path, dest_img_path)
+
+        if os.path.exists(src_lbl_path) and (overwrite or not os.path.exists(dest_lbl_path)):
+            shutil.copy(src_lbl_path, dest_lbl_path)
+
+        if not os.path.exists(src_img_path) or not os.path.exists(src_lbl_path):
+            print("No both for file:", f)
 
 
-def sort_yolo_folders(tr_img, tr_labels, valid_names=[]):
+def sort_yolo_folders(tr_img, tr_labels, valid_names=[], overwrite=False):
     random.seed(42)
     base_dir = 'dataset'
     subfolders = ['train', 'valid', 'test']
@@ -289,11 +297,11 @@ def sort_yolo_folders(tr_img, tr_labels, valid_names=[]):
 
     # Copy files to the new directory structure
     copy_files(train_images, tr_img, tr_labels, os.path.join(base_dir, 'train', 'images'),
-               os.path.join(base_dir, 'train', 'labels'), valid_names)
+               os.path.join(base_dir, 'train', 'labels'), valid_names, overwrite=overwrite)
     copy_files(valid_images, tr_img, tr_labels, os.path.join(base_dir, 'valid', 'images'),
-               os.path.join(base_dir, 'valid', 'labels'), valid_names)
+               os.path.join(base_dir, 'valid', 'labels'), valid_names, overwrite=overwrite)
     copy_files(test_images, tr_img, tr_labels, os.path.join(base_dir, 'test', 'images'),
-               os.path.join(base_dir, 'test', 'labels'), valid_names)
+               os.path.join(base_dir, 'test', 'labels'), valid_names, overwrite=overwrite)
 
 
 def get_random_image(dir_path):
