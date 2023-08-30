@@ -15,7 +15,12 @@ from IPython.display import display
 from tqdm import tqdm
 import random
 from utils.util_funcs import load_bounding_boxes
-from data.global_data import box_classes, colors_list
+from data.global_data import box_classes, colors_list, chart_labels_2_indx, indx_2_chart_label
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+
+
+
 
 class_2_color = dict(zip(box_classes, colors_list))
 
@@ -90,4 +95,73 @@ def plot_w_box_from_path(index=0, base_path=os.path.join('dataset', 'train')):
         # Add the patch to the Axes
         ax.add_patch(rect)
 
+    plt.show()
+
+
+def show_images_in_grid(dataloader, n_rows, n_cols):
+    # Get a batch of images and labels
+    images, labels = next(iter(dataloader))
+
+    # Prepare the matplotlib figure
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=(15, 15))
+
+    for i, ax in enumerate(axs.flat):
+        # Make sure we don't go over the number of images in the batch
+        if i >= len(images):
+            break
+
+        # Get the label for the image
+        label = indx_2_chart_label[labels[i].item()]
+
+        # Convert image from PyTorch tensor to NumPy array
+        img = images[i].permute(1, 2, 0).numpy()
+
+        # Display the image and its label
+        if img.shape[2] == 1:
+            ax.imshow(img, cmap="gray")
+        else:
+            ax.imshow(img)
+        ax.set_title(label)
+        ax.axis('off')
+
+    plt.show()
+
+
+def plot_metrics_from_version(version, base_path="/kaggle/working/logs/csv/lightning_logs/"):
+    metrics = pd.read_csv(f"{base_path}version_{version}/metrics.csv")
+
+    train_acc_epoch = metrics["train_acc_epoch"][~metrics["train_acc_epoch"].isna()]
+    val_acc_epoch = metrics["val_acc_epoch"][~metrics["val_acc_epoch"].isna()]
+    epochs_number = list(range(1, len(train_acc_epoch) + 1))
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(epochs_number, train_acc_epoch, label='Train Accuracy', marker='o')
+    plt.plot(epochs_number, val_acc_epoch, label='Validation Accuracy', marker='o')
+    plt.title('Training and Validation Accuracy across Steps')
+    plt.xlabel('Steps')
+    plt.ylabel('Accuracy')
+    plt.ylim(0.95, 1)
+    plt.legend()
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_misclassified_images(inputs, labels, preds):
+    wrong_idxs = (preds != labels).nonzero(as_tuple=True)[0]
+    for idx in wrong_idxs:
+        plt.figure(figsize=(4,4))
+        plt.imshow(inputs[idx].cpu().permute(1,2,0).numpy(), cmap="gray")
+        plt.title(f"True: {indx_2_chart_label[labels[idx].item()]}, Predicted: {indx_2_chart_label[preds[idx].item()]}")
+        plt.axis('off')
+        plt.show()
+
+
+def compute_and_plot_confusion_matrix(all_labels, all_preds):
+    cm = confusion_matrix(all_labels, all_preds)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+    plt.ylabel('Actual labels')
+    plt.xlabel('Predicted labels')
+    plt.title('Confusion Matrix')
     plt.show()

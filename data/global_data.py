@@ -1,5 +1,8 @@
 box_classes = ["plot", "x_tick", "y_tick", "scatter_point", "bar", "dot_point", "line_point", "tick_label"]
 colors_list = ["r", "blue", "blue", "black", "purple", "yellow", "green", "orange"]
+chart_labels = ["line", "scatter", "vertical_bar", "horizontal_bar", "dot"]
+chart_labels_2_indx = dict(zip(chart_labels, range(len(chart_labels))))
+indx_2_chart_label = dict(zip(range(len(chart_labels)), chart_labels))
 
 class_box_to_idx = {class_name: idx for idx, class_name in enumerate(box_classes)}
 
@@ -43,3 +46,5 @@ outlier_images = ['9a6b0f8d2add', '31bf91c2135f', '5c8a334d4c2a', 'd5545cc232eb'
                   "e1bb13a43ccf", "f547467d453d", "e9303967ba74", "10928f154f28", "91e91cc6a0e7",
                   "07c31a091c16", "1215af1fbb4a", "8b865bd8f97e", "f4ca07ab539a", "3961d4816dd2",
                   "315218dc407c", "ba0d2e20eda2", "af9ad3de2561", "6aebf72022bb", "e2a66a887c75", "aaff10482865"]
+
+

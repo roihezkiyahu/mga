@@ -11,14 +11,15 @@ for example if a chart is line and also dots were detected, categorical X values
 numerical values for dot plots
 
 ## classifier
-- upload classifier model weights
+- ~~upload classifier model weights~~
+- code to load classifier
 - check classifier works on generated data
 - retrain if necessary
 
 ## detector
 - generate data to general detector
 - check line detector
-- add resume option from started project
+- ~~add resume option from started project~~
 
 
 ## virtual machine
