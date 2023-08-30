@@ -15,10 +15,11 @@ from IPython.display import display
 from tqdm import tqdm
 import random
 from utils.util_funcs import load_bounding_boxes
-from data.global_data import box_classes, colors_list, chart_labels
+from data.global_data import box_classes, colors_list
 try:
     from data.global_data import indx_2_chart_label, chart_labels_2_indx
 except ImportError:
+    chart_labels = ["line", "scatter", "vertical_bar", "horizontal_bar", "dot"]
     chart_labels_2_indx = {class_name: idx for idx, class_name in enumerate(chart_labels)}
     indx_2_chart_label = {idx: class_name for idx, class_name in enumerate(chart_labels)}
 from sklearn.metrics import confusion_matrix
