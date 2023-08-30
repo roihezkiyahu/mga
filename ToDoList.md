@@ -1,5 +1,5 @@
 # To Do List:
-- make flow chart
+- ~~make flow chart~~
 - extract text from image/bbox (OCR)
 - Yolo results to tensor: taking the yolo output and creating a tensor suitable for next stage prediction,
 should include x,y,type,value

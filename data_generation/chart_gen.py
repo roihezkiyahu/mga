@@ -342,6 +342,7 @@ def merge_rows(row_x, row_y):
 
 
 def generate_dynamic_data_point(df):
+    # TODO add random subset
     row_x = df.sample(n=1).iloc[0]
     row_y = df.sample(n=1).iloc[0]
     x_values = row_x['x']
@@ -351,7 +352,8 @@ def generate_dynamic_data_point(df):
         start_index = random.randint(0, len(y_values) - len(x_values))
         y_values = y_values[start_index:start_index + len(x_values)]
     elif len(y_values) < len(x_values):
-        x_values = x_values[:len(y_values)]
+        start_index = random.randint(0, len(x_values) - len(y_values))
+        x_values = x_values[start_index:start_index + len(y_values)]
     return x_values, y_values, titels
 
 
