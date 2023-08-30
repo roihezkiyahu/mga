@@ -277,9 +277,8 @@ def copy_files(file_list, source_img, source_lbl, dest_img, dest_lbl, valid_name
             print("No both for file:", f)
 
 
-def sort_yolo_folders(tr_img, tr_labels, valid_names=[], overwrite=False):
+def sort_yolo_folders(tr_img, tr_labels, valid_names=[], overwrite=False, base_dir='dataset'):
     random.seed(42)
-    base_dir = 'dataset'
     subfolders = ['train', 'valid', 'test']
     for subfolder in subfolders:
         os.makedirs(os.path.join(base_dir, subfolder, 'images'), exist_ok=True)
