@@ -22,7 +22,12 @@ from torch.utils.data import random_split
 # from lightning.pytorch import loggers as pl_loggers
 from sklearn.model_selection import train_test_split
 from torch.optim.lr_scheduler import StepLR
-from data.global_data import chart_labels_2_indx, indx_2_chart_label
+try:
+    from data.global_data import indx_2_chart_label, chart_labels_2_indx
+except ImportError:
+    chart_labels = ["line", "scatter", "vertical_bar", "horizontal_bar", "dot"]
+    chart_labels_2_indx = {class_name: idx for idx, class_name in enumerate(chart_labels)}
+    indx_2_chart_label = {idx: class_name for idx, class_name in enumerate(chart_labels)}
 from plot_functions.mga_plt import plot_misclassified_images
 
 
