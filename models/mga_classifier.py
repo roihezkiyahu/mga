@@ -19,7 +19,7 @@ from torch import nn
 from pytorch_lightning import Trainer
 from torchvision.transforms.functional import pad
 from torch.utils.data import random_split
-from lightning.pytorch import loggers as pl_loggers
+# from lightning.pytorch import loggers as pl_loggers
 from sklearn.model_selection import train_test_split
 from torch.optim.lr_scheduler import StepLR
 from data.global_data import chart_labels_2_indx, indx_2_chart_label
