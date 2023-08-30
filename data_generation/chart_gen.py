@@ -180,7 +180,7 @@ def random_generate_bar_chart(categories, values, x_title=None, y_title=None, gr
     theme = np.random.choice(['dark_background', 'default', 'grayscale', 'dark_gray'], p=[0.2, 0.5, 0.2, 0.1])
     if theme == 'dark_background' and color == "black":
         theme = 'default'
-    orientation = "horizontal" if random.random() < 1 else "vertical"  # 10% chance for horizontal
+    orientation = "horizontal" if random.random() < 0.1 else "vertical"  # 10% chance for horizontal
     if os.sep in name:
         name = os.path.join(os.path.dirname(name), f"{orientation}_{os.path.basename(name)}")
     else:
@@ -341,12 +341,20 @@ def merge_rows(row_x, row_y):
     return new_dict
 
 
-def generate_dynamic_data_point(df):
-    # TODO add random subset
+def generate_dynamic_data_point(df, rand_subset=5):
     row_x = df.sample(n=1).iloc[0]
     row_y = df.sample(n=1).iloc[0]
     x_values = row_x['x']
     y_values = row_y['y']
+    rand_start = random.randint(0, min(rand_subset, len(x_values)//3, len(y_values)//3))
+    rand_end = random.randint(0, min(rand_subset, len(x_values)//3, len(y_values)//3))
+    if rand_end:
+        x_values = x_values[rand_start: -rand_end]
+        y_values = y_values[rand_start: -rand_end]
+    else:
+        x_values = x_values[rand_start:]
+        y_values = y_values[rand_start:]
+
     titels = merge_rows(row_x, row_y)
     if len(y_values) > len(x_values):
         start_index = random.randint(0, len(y_values) - len(x_values))
