@@ -47,6 +47,7 @@ outlier_images = ['9a6b0f8d2add', '31bf91c2135f', '5c8a334d4c2a', 'd5545cc232eb'
                   "e1bb13a43ccf", "f547467d453d", "e9303967ba74", "10928f154f28", "91e91cc6a0e7",
                   "07c31a091c16", "1215af1fbb4a", "8b865bd8f97e", "f4ca07ab539a", "3961d4816dd2",
                   "315218dc407c", "ba0d2e20eda2", "af9ad3de2561", "6aebf72022bb", "e2a66a887c75", "aaff10482865",
-                  "03422fd0b855", "0bcd3bc4d26b", "da11087a4be7", "feb3842c7a00"]
+                  "03422fd0b855", "0bcd3bc4d26b", "da11087a4be7", "feb3842c7a00", "f1b5de9b43f", "a8d3fca15bf4",
+                  "d0fc5fe01fbc", "d425749760fb", "8e7639628073"]
 
 

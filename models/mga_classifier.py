@@ -61,10 +61,12 @@ class ChartDataLoader(Dataset):
 
 
 class GraphClassifier(pl.LightningModule):
-    def __init__(self, num_classes=5, optimizer='Adam', lr=0.001):
+    def __init__(self, num_classes=5, optimizer='Adam', lr=0.001, one_channel=True,
+                 class_weights=[1, 2.0, 1.3, 5.0, 3.0]):
         super().__init__()
-        base_model = resnet34(weights=None)
-        base_model.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        base_model = resnet50(weights=None)
+        if one_channel:
+            base_model.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         num_ftrs = base_model.fc.in_features
         self.features = nn.Sequential(*list(base_model.children())[:-1])  # Remove original FC layer
         self.classifier = nn.Sequential(
@@ -82,7 +84,7 @@ class GraphClassifier(pl.LightningModule):
             nn.ReLU(),
             nn.Linear(16, num_classes)
         )
-        weights = torch.tensor([1, 2.0, 1.3, 5.0, 3.0]).to(self.device)
+        weights = torch.tensor(class_weights).to(self.device)
         criterion = nn.CrossEntropyLoss(weight=weights)
         self.criterion = criterion
         self.optimizer_type = optimizer
@@ -168,7 +170,8 @@ def get_transforms(image_size,
                    affine_scale=(0.8, 1.2),
                    use_color_jitter=False,
                    use_invert_img=False,
-                   use_erasing_transforms=False):
+                   use_erasing_transforms=False,
+                   gray_scale=True):
     if erase_params is None:
         erase_params = [
             {'p': 0.9, 'scale': (0.0005, 0.005), 'ratio': (0.33, 3), 'value': 0, 'inplace': False},
@@ -178,12 +181,14 @@ def get_transforms(image_size,
     erasing_transforms = [transforms.RandomErasing(**param) for param in erase_params for _ in range(num_erases)]
 
     transform_list_train = [
-        transforms.Grayscale(num_output_channels=grayscale_channels),
         transforms.RandomHorizontalFlip(flip_prob),
         transforms.Lambda(lambda img: resize_and_pad(img, size=image_size)),
         transforms.ToTensor(),
         transforms.RandomAffine(degrees=0, translate=affine_translate, scale=affine_scale)
     ]
+
+    if gray_scale:
+        transform_list_train.insert(0, transforms.Grayscale(num_output_channels=grayscale_channels))
 
     if use_color_jitter:
         transform_list_train.insert(1, transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1))
@@ -196,11 +201,15 @@ def get_transforms(image_size,
 
     transform_train = transforms.Compose(transform_list_train)
 
-    transform_val = transforms.Compose([
-        transforms.Grayscale(num_output_channels=grayscale_channels),
+    transform_list_val = [
         transforms.Lambda(lambda img: resize_and_pad(img, size=image_size)),
         transforms.ToTensor(),
-    ])
+    ]
+
+    if gray_scale:
+        transform_list_val.insert(0, transforms.Grayscale(num_output_channels=grayscale_channels))
+
+    transform_val = transforms.Compose(transform_list_val)
 
     return transform_train, transform_val
 
