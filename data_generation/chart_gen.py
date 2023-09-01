@@ -397,7 +397,7 @@ def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat
     for i in tqdm(range(n)):
         try:
             x_data_dynamic, y_data_dynamic, titels = generate_dynamic_data_point(data_series)
-            if len(x_data_dynamic) < 3 or len(y_data_dynamic) < 3 or len(y_data_dynamic) > 30:
+            if len(x_data_dynamic) < 3 or len(y_data_dynamic) < 3 or len(y_data_dynamic) > 50:
                 continue
             if not isinstance(x_data_dynamic[0], str) and "scat" in data_types:
                 data_dict, final_name = random_generate_scatter_chart(x_data_dynamic, y_data_dynamic,
