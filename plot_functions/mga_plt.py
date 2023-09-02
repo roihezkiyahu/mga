@@ -27,7 +27,6 @@ import seaborn as sns
 
 
 
-
 class_2_color = dict(zip(box_classes, colors_list))
 
 color_mapping = {

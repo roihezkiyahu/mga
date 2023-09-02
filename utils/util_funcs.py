@@ -326,3 +326,7 @@ def create_gen_df(gen_folder):
     chart_types = [get_label(image) for image in os.listdir(gen_folder) if image.endswith(".jpg")]
     return pd.DataFrame({"image": imgs_list_paths,
                  "chart-type": chart_types})
+
+
+def sort_torch_by_col(torch_input, col=1):
+    return torch_input[torch_input[:, col].argsort()]

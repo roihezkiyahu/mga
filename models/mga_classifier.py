@@ -62,9 +62,14 @@ class ChartDataLoader(Dataset):
 
 class GraphClassifier(pl.LightningModule):
     def __init__(self, num_classes=5, optimizer='Adam', lr=0.001, one_channel=True,
-                 class_weights=[1, 2.0, 1.3, 5.0, 3.0]):
+                 class_weights=[1, 2.0, 1.3, 5.0, 3.0], resnet_model=50):
         super().__init__()
-        base_model = resnet50(weights=None)
+        if resnet_model == 18:
+            base_model = resnet18(weights=None)
+        if resnet_model == 34:
+            base_model = resnet34(weights=None)
+        if resnet_model == 50:
+            base_model = resnet50(weights=None)
         if one_channel:
             base_model.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         num_ftrs = base_model.fc.in_features
@@ -247,7 +252,7 @@ if __name__ == "__main__":
     validation_ratio = 0.2
     image_size = 224
     learning_rate = 5e-5
-    model = GraphClassifier(num_classes=5, lr=learning_rate)
-    model.load_state_dict(torch.load('model_weights.pth'))
+    model = GraphClassifier(num_classes=5, lr=learning_rate, resnet_model=34)
+    model.load_state_dict(torch.load(r"C:\Users\Nir\PycharmProjects\mga\weights\classifier\resnet_34_999.pth"))
 
 
