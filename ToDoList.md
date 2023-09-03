@@ -20,15 +20,15 @@ numerical values for dot plots
 
 ## detector
 - generate data to general detector
-- check line detector
-- Yolo wrapper, results to tensor: taking the yolo output and creating a tensor suitable for next stage prediction,
-should include x,y,type,value
+- check line detector: Background images 
+- ~~Yolo wrapper, results to tensor: taking the yolo output and creating a tensor suitable for next stage prediction,
+should include x,y,type,value~~
 - ~~add resume option from started project~~
 
 ## OCR
 - choose OCR (easyoct, tesserect, trocr, pp-ocr(paddle)). currently trocr seem to work the best did not try pp-ocr
 - ~~get direction of rotation, check if improves trocr~~ improves on small by eye test
-- connect to detector
+- ~~connect to detector~~
 
 
 ## virtual machine

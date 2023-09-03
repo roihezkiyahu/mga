@@ -267,14 +267,15 @@ def copy_files(file_list, source_img, source_lbl, dest_img, dest_lbl, valid_name
         dest_img_path = os.path.join(dest_img, f)
         dest_lbl_path = os.path.join(dest_lbl, f.replace('.jpg', '.txt'))
 
+        if not os.path.exists(src_img_path) or not os.path.exists(src_lbl_path):
+            print("No both for file:", f)
+            continue
+
         if os.path.exists(src_img_path) and (overwrite or not os.path.exists(dest_img_path)):
             shutil.copy(src_img_path, dest_img_path)
 
         if os.path.exists(src_lbl_path) and (overwrite or not os.path.exists(dest_lbl_path)):
             shutil.copy(src_lbl_path, dest_lbl_path)
-
-        if not os.path.exists(src_img_path) or not os.path.exists(src_lbl_path):
-            print("No both for file:", f)
 
 
 def sort_yolo_folders(tr_img, tr_labels, valid_names=[], overwrite=False, base_dir='dataset'):
@@ -308,7 +309,7 @@ def get_random_image(dir_path):
     return random.choice(images)
 
 
-def get_label(img_name):
+def get_gen_label(img_name):
     img_name = img_name.split(".")[0]
     if "line" in img_name:
         return "line"
@@ -321,12 +322,25 @@ def get_label(img_name):
     if "dot" in img_name:
         return "dot"
 
+
 def create_gen_df(gen_folder):
     imgs_list_paths = [os.path.join(gen_folder, image) for image in os.listdir(gen_folder) if image.endswith(".jpg")]
-    chart_types = [get_label(image) for image in os.listdir(gen_folder) if image.endswith(".jpg")]
+    chart_types = [get_gen_label(image) for image in os.listdir(gen_folder) if image.endswith(".jpg")]
     return pd.DataFrame({"image": imgs_list_paths,
                  "chart-type": chart_types})
 
 
 def sort_torch_by_col(torch_input, col=1):
     return torch_input[torch_input[:, col].argsort()]
+
+if __name__ == "__main__":
+    labels_folder = r"C:\Users\Nir\Downloads\labels"
+    label_files = os.listdir(labels_folder)
+    column_names = ["class_id", "x_center", "y_center", "width", "height"]
+    for file in tqdm(label_files):
+        file_path = os.path.join(labels_folder, file)
+        df = pd.read_csv(file_path, sep=" ", header=None, names=column_names)
+        if not len(df):
+            print("no labels: ", file_path)
+    print("Done")
+
