@@ -3,7 +3,7 @@ import os
 import torch
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-from utils.util_funcs import sort_torch_by_col
+from utils.util_funcs import sort_torch_by_col, remove_characters
 from PIL import Image
 from math import floor, ceil
 # import pytesseract
@@ -22,6 +22,8 @@ def preprocess_image(image):
                    kernel_size[1] + 1 if kernel_size[1] % 2 == 0 else kernel_size[1])
     kernel = np.ones(kernel_size, np.uint8)
     _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    if np.mean(thresh) > 125: # of of the image is dark (dark mode, gray, etc)
+        thresh = 255 - thresh
     dilated = cv2.dilate(thresh, kernel, iterations=1)
     return dilated
 
@@ -63,8 +65,11 @@ def straighten_image(image, angle):
     M = cv2.getRotationMatrix2D(center, angle, 1.0)
     M[0, 2] += (new_width - w) / 2
     M[1, 2] += (new_height - h) / 2
-
-    rotated = cv2.warpAffine(image, M, (new_width, new_height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
+    median_blue = np.median(image[:, :, 0])
+    median_green = np.median(image[:, :, 1])
+    median_red = np.median(image[:, :, 2])
+    rotated = cv2.warpAffine(image, M, (new_width, new_height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT,
+                             borderValue=(median_red, median_green, median_blue))
 
     return rotated
 
@@ -98,9 +103,9 @@ def rotate_and_crop(image):
         image = straighten_image(image, angle-90)
         thresh = preprocess_image(image)
         image = extract_middle_contour(image, thresh)
-    plt.imshow(image)
-    plt.show()
-    return image
+    # plt.imshow(image)
+    # plt.show()
+    return image, angle_45, angle_135
 
 
 def compute_roi_coordinates(x, y, w, h):
@@ -213,7 +218,7 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
     for box in boxes:
         x1, y1, x2, y2 = compute_roi_coordinates(*box)
         roi = img_pil.crop((x1, y1, x2, y2))
-        roi = rotate_and_crop(roi)
+        roi, rotated_45, rotated_135 = rotate_and_crop(roi)
         if mode == "easyocr":
             texts.append(extract_with_easyocr(roi, reader))
         elif mode == "trocr":
@@ -222,7 +227,7 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
             texts.append(extract_with_tesseract(roi))
     if mode == "trocr":
         texts = extract_with_trocr(rois, processor, model)
-    return texts
+    return texts, rotated_45, rotated_135
 
 
 def tick_label2axis_label(box_torch):
@@ -252,3 +257,155 @@ def match_tick2label(box_torch):
 def validate_length():
     # TODO validate the length of x_ticks and intrest points (line_point,bar, dot)
     pass
+
+
+def point_to_numeric(val, chars_to_remove):
+    try:
+        return float(remove_characters(val, chars_to_remove))
+    except ValueError:
+        return np.inf
+
+
+def ticks_to_numeric(finsl_res, tick_to_turn=["y_ticks"], chars_to_remove=["%", "$"]):
+    x_y, labels, values, _ = finsl_res
+    values = np.array(values, dtype=object)
+    if "y_ticks" in tick_to_turn:
+        mask = np.array(labels) == "y_tick"
+        values[mask] = [point_to_numeric(val, chars_to_remove) for val in values[mask]]
+    mask = np.array(labels) == "x_tick"
+    if "x_ticks" in tick_to_turn:
+        values[mask] = [point_to_numeric(val, chars_to_remove) for val in values[mask]]
+    # output_order = np.argsort(x_y[mask][:, 0])
+    inf_mask = [np.isinf(val) if isinstance(val, float) else False for val in values]
+    x_y[inf_mask] = torch.tensor([np.inf, np.inf])
+    return x_y, labels, values
+
+
+def find_closest_ticks(tensor, labels, label_to_find, n_x_ticks, n_y_ticks):
+    label_to_find_mask = np.array(labels) == label_to_find
+    x_tick_mask = np.array(labels) == 'x_tick'
+    y_tick_mask = np.array(labels) == 'y_tick'
+
+    target_points = tensor[label_to_find_mask]
+    x_ticks = tensor[x_tick_mask]
+    y_ticks = tensor[y_tick_mask]
+
+    closest_ticks = []
+    for target_point in target_points:
+        distances_to_x_ticks = np.abs(x_ticks[:, 0] - target_point[0])
+        distances_to_y_ticks = np.abs(y_ticks[:, 1] - target_point[1])
+
+        closest_x_ticks = distances_to_x_ticks.argsort()[:n_x_ticks]
+        closest_y_ticks = distances_to_y_ticks.argsort()[:n_y_ticks]
+
+        closest_ticks.append((closest_x_ticks, closest_y_ticks))
+
+    return closest_ticks, x_ticks, y_ticks
+
+
+def get_ip_data(x_y, labels, values, label_to_find, include_x_coors=False):
+    intrest_points = x_y[np.array([label == label_to_find for label in labels])]
+    x_values_mask = np.array([label == "x_tick" for label in labels])
+    y_tick_mask = np.array([label == "y_tick" for label in labels])
+    x_values = values[x_values_mask]
+    y_values = values[y_tick_mask]
+    y_coords = x_y[y_tick_mask]
+    if include_x_coors:
+        return intrest_points, x_values, y_values, y_coords, x_y[x_values_mask]
+    return intrest_points, x_values, y_values, y_coords
+
+
+def get_categorical_output(interest_points, closest_ticks, x_values, y_values, y_coords, x_coords=None):
+    y_output, x_output = [], []
+    for interest_point, close_tick in zip(interest_points, closest_ticks):
+        x_loc, y_loc = close_tick
+        x_tick, y_vals = x_values[x_loc], y_values[y_loc]
+        if len(x_loc) == 1 and len(y_loc) == 1:
+            y_output.append(y_vals)
+            x_output.append(x_tick)
+            continue
+        if isinstance(x_coords, type(None)):
+            xy_1, xy_2 = y_coords[y_loc]
+            pixel_val = (y_vals[0] - y_vals[1]) / (xy_2[1] - xy_1[1])
+            interest_point_y_val = pixel_val * (xy_2[1] - interest_point[1]) + y_vals[1]
+
+            y_output.append(interest_point_y_val.item())
+            x_output.append(x_tick)
+        else:
+            x_xy_1, x_xy_2 = x_coords[x_loc]
+            x_vals = x_values[x_loc]
+            pixel_val = (x_vals[1] - x_vals[0]) / (x_xy_2[0] - x_xy_1[0])
+            interest_point_x_val = pixel_val * (interest_point[0] - x_xy_1[0]) + x_vals[0]
+            y_output.append(y_vals)
+            x_output.append(interest_point_x_val.item())
+
+    return np.array(y_output), np.array(x_output)
+
+
+def get_numerical_output(interest_points, closest_ticks, x_values, y_values, x_coords, y_coords):
+    y_output, x_output = [], []
+    for interest_point, close_tick in zip(interest_points, closest_ticks):
+        x_loc, y_loc = close_tick
+        x_tick, y_vals, x_vals = x_values[x_loc], y_values[y_loc], x_values[x_loc]
+        y_xy_1, y_xy_2 = y_coords[y_loc]
+        x_xy_1, x_xy_2 = x_coords[x_loc]
+
+        pixel_val = (y_vals[0] - y_vals[1]) / (y_xy_2[1] - y_xy_1[1])
+        interest_point_y_val = pixel_val * (y_xy_2[1] - interest_point[1]) + y_vals[1]
+
+        pixel_val = (x_vals[1] - x_vals[0]) / (x_xy_2[0] - x_xy_1[0])
+        interest_point_x_val = pixel_val * (interest_point[0] - x_xy_1[0]) + x_vals[0]
+
+        y_output.append(interest_point_y_val.item())
+        x_output.append(interest_point_x_val.item())
+
+    return np.array(y_output), np.array(x_output)
+
+
+def fill_non_complete_prediction(x_output, x_values, y_output, method="median"):
+    # better to give wrong prediction than to give short prediction
+    not_in_x_output = [value for value in x_values if value not in x_output]
+    # #might want to try some smarter prediciton based on close points
+    # not_in_x_output_index = np.where(np.isin(x_values, not_in_x_output))[0]
+    # not_in_x_output_xy = x_ticks_xy[not_in_x_output_index]
+    if method == "median":
+        med_val = np.median(y_output)
+        new_y_out = [med_val] * len(not_in_x_output)
+        return not_in_x_output, new_y_out
+    if method == "nan":
+        new_y_out = [np.nan] * len(not_in_x_output)
+        return not_in_x_output, new_y_out
+    mean_val = np.median(y_output)
+    new_y_out = [mean_val] * len(not_in_x_output)
+    return not_in_x_output, new_y_out
+
+
+def classify_bars(image, bbox):
+    try:
+        if image is None:
+            return "vertical_bar"
+        h, w = image.shape[:2]
+        image = image[max(int(bbox[1]-bbox[3]/2), 0): min(int(bbox[1]+bbox[3]/2), h),
+                      max(int(bbox[0] - bbox[2] / 2), 0): min(int(bbox[0] + bbox[2] / 2), w)]
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        edges = cv2.Canny(gray, 200, 250)
+        contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        horizontal_count = 0
+        vertical_count = 0
+
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            if w > h:
+                horizontal_count += 1
+            else:
+                vertical_count += 1
+
+        if vertical_count >= horizontal_count:
+            return "vertical_bar"
+        else:
+            return "horizontal_bar"
+
+    except Exception as e:
+        print(e)
+        return "vertical_bar"

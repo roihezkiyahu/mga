@@ -8,6 +8,7 @@ import cv2
 from data.global_data import class_box_to_idx, outlier_images
 import random
 import shutil
+from typing import Union, List, Iterable
 
 
 def extract_width_and_height(df):
@@ -59,7 +60,7 @@ def create_dataframe(annotations_directory):
     return df
 
 
-def get_bboxes(row, width=12, gen=False):
+def get_bboxes(row, width=12, gen=False, only_plot_area=False):
     boxes = []
     # Plot bounding box
     boxes.append({
@@ -69,6 +70,8 @@ def get_bboxes(row, width=12, gen=False):
         "width": row["plot-bb.width"],
         "height": row["plot-bb.height"]
     })
+    if only_plot_area:
+        return boxes
     # X-axis ticks - int
     for x_tick in safe_literal_eval(row["axes.x-axis.ticks"]):
         tick_pt = x_tick['tick_pt']
@@ -203,10 +206,11 @@ def create_bounding_boxes(df, width=12):
     return bounding_boxes
 
 
-def annotation_to_labels(image_path, chart_boxes, is_box=True, labels_folder="labels", img_folder="", gen=False):
+def annotation_to_labels(image_path, chart_boxes, is_box=True, labels_folder="labels", img_folder="", gen=False,
+                         only_plot_area=False):
     if not is_box:
         # TODO make sure it works correctly when reading data from files and not from flow
-        chart_boxes = get_bboxes(chart_boxes, width=12, gen=gen)
+        chart_boxes = get_bboxes(chart_boxes, width=12, gen=gen, only_plot_area=only_plot_area)
     image = cv2.imread(image_path)
     if isinstance(image, type(None)):
         print(image_path, " is None")
@@ -332,6 +336,85 @@ def create_gen_df(gen_folder):
 
 def sort_torch_by_col(torch_input, col=1):
     return torch_input[torch_input[:, col].argsort()]
+
+
+def is_numeric(value):
+    def check_numeric(single_value):
+        try:
+            float(single_value)
+            return True
+        except ValueError:
+            return False
+
+    if isinstance(value, Iterable):
+        return all(check_numeric(single_value) for single_value in value)
+    else:
+        return check_numeric(value)
+
+
+def remove_characters(s, chars_to_remove):
+    for char in chars_to_remove:
+        s = s.replace(char, "")
+    return s
+
+
+def find_duplicate_indices(lst):
+    value_indices = {}
+    duplicate_indices = []
+
+    for index, item in enumerate(lst):
+        if item in value_indices:
+            duplicate_indices.append(index)
+        else:
+            value_indices[item] = index
+
+    return duplicate_indices
+
+
+def lowercase_except_first_letter(arr):
+    if arr.ndim != 1:
+        return "Input should be a 1-dimensional numpy array"
+
+    def modify_string(s):
+        if len(s) > 1:
+            return s[0] + s[1:].lower()
+        else:
+            return s
+
+    vectorized_modify_string = np.vectorize(modify_string)
+    return vectorized_modify_string(arr)
+
+def graph_class2type(graph_class):
+    if graph_class == "line":
+        graph_type = "line_point"
+    if graph_class == "scatter":
+        graph_type = "scatter_point"
+    if graph_class == "bar":
+        graph_type = "line_point"
+    if graph_class == "bar":
+        graph_type = "line_point"
+    if graph_class == "dot":
+        graph_type = "dot_point"
+    return graph_type
+
+
+def save_bentech_res(img_path, res_foldr, benetech_score_eval, df_out=pd.DataFrame({}), df_gt=pd.DataFrame({}),
+                     failed=False):
+    img_name = os.path.basename(img_path).split(".")[0]
+    if not failed:
+        df_name = os.path.join(res_foldr, f"{img_name}_{int(benetech_score_eval * 100)}.csv")
+        df_gt_name = os.path.join(res_foldr, f"{img_name}_gt.csv")
+        print(benetech_score_eval)
+    else:
+        img_name = os.path.basename(img_path).split(".")[0]
+        df_name = os.path.join(res_foldr, f"{img_name}_fail.csv")
+        df_gt_name = os.path.join(res_foldr, f"{img_name}_gt.csv")
+        print("failed:", img_path)
+    df_out.to_csv(df_name)
+    df_gt.to_csv(df_gt_name)
+
+
+
 
 if __name__ == "__main__":
     labels_folder = r"C:\Users\Nir\Downloads\labels"

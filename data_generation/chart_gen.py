@@ -1,4 +1,5 @@
 import matplotlib.ticker as ticker
+import numpy as np
 from sklearn.linear_model import LinearRegression
 import pandas as pd
 from tqdm import tqdm
@@ -9,8 +10,6 @@ from utils.util_funcs import get_bboxes, safe_literal_eval, annotation_to_labels
 import matplotlib.transforms as mtransforms
 import matplotlib.pyplot as plt
 plt.ticklabel_format(style='plain')
-
-
 
 
 def generate_line_chart(x, y, line_color='blue', grid_style="both", x_title=None, y_title=None, graph_title=None,
@@ -382,11 +381,11 @@ def preprocess_data_series(data_series):
     return data_series
 
 
-def postprocess_data_gen(data_dict, final_name, data_list):
+def postprocess_data_gen(data_dict, final_name, data_list, only_plot_area=False):
     data_dict["name"] = os.path.basename(final_name)
     data_list = np.append(data_list, data_dict)
     annotation_to_labels(os.path.join(generated_imgs, f"{final_name}.jpg"),
-                         data_dict, False, generated_imgs, gen=True)
+                         data_dict, False, generated_imgs, gen=True, only_plot_area=only_plot_area)
     return data_dict, data_list
 
 
@@ -450,24 +449,51 @@ def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat
     return data_list
 
 
+def generate_random_bg_plot(x_title=None, y_title=None, graph_title=None, name="", show=False, folder=""):
+    if folder != "":
+        os.makedirs(folder, exist_ok=True)
+    figsize_w = random.randint(4, 13)
+    figsize_h = random.randint(max(4, int(figsize_w / 3.7)), min(int(figsize_w * 1.5), 9))
+
+    theme_choices = ['dark_background', 'default', 'grayscale', 'dark_gray']
+    theme = np.random.choice(theme_choices, p=[0.1, 0.6, 0.2, 0.1])
+    grid_style = np.random.choice(["both", "x", "y", "none"], p=[0.1, 0.1, 0.1, 0.7])
+
+    set_style(theme)
+    fig, ax = plt.subplots(figsize=(figsize_w, figsize_h))
+    set_grid(grid_style, ax)
+
+    ax.tick_params(left=False, right=False, labelleft=False,
+                   labelbottom=False, bottom=False)
+    set_title(ax, x_title, y_title, graph_title)
+    set_ax_loc_rotate(ax, random.choice([True, False]))
+    data_dict = extract_bg_data(ax, fig)
+    final_name = save_file(os.path.join(folder, name), fig, {})
+    postprocess_data_gen(data_dict, final_name, [], True)
+    if show:
+        plt.show()
+
+
 if __name__ == "__main__":
     data_series_path = r"D:\MGA\data_series.csv"
     data_series = preprocess_data_series(pd.read_csv(data_series_path))
-    generated_imgs = r"D:\MGA\gen_charts"
-    data_types = ["scat"]# ["line", "scat", "dot", "bar"]
-    data_list = generate_n_plots(data_series, generated_imgs, n=2500, data_types=data_types,
-                                 show=False, clear_list=True)
-    df = pd.DataFrame.from_records(data_list)
-    df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
+    generated_imgs = r"D:\MGA\bg_gen_charts"
+    # data_types = ["scat"]# ["line", "scat", "dot", "bar"]
+    # data_list = generate_n_plots(data_series, generated_imgs, n=2500, data_types=data_types,
+    #                              show=False, clear_list=True)
+    # df = pd.DataFrame.from_records(data_list)
+    # df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
 
-    x_data_dynamic, y_data_dynamic, titels = generate_dynamic_data_point(data_series)
+    # x_data_dynamic, y_data_dynamic, titels = generate_dynamic_data_point(data_series)
+    #
+    # data_list = generate_n_plots(data_series, generated_imgs, n=500, data_types=["line", "scat", "bar"],
+    #                              show=False, clear_list=True)
+    # df = pd.DataFrame.from_records(data_list)
+    # df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
 
-    data_list = generate_n_plots(data_series, generated_imgs, n=500, data_types=["line", "scat", "bar"],
-                                 show=False, clear_list=True)
-    df = pd.DataFrame.from_records(data_list)
-    df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
-
-    x_data_dynamic, y_data_dynamic, titels = generate_dynamic_data_point(data_series)
+    for i in tqdm(range(1000)):
+        x_data_dynamic, y_data_dynamic, titels = generate_dynamic_data_point(data_series)
+        generate_random_bg_plot(**titels, name="bg", show=False, folder=generated_imgs)
 
     # data_dict, final_name = random_generate_bar_chart(["A", "B", "C", "D", "E", "F"], [1,2,3,4,5,6],
     #                                                   name=os.path.join(generated_imgs, "bar"))

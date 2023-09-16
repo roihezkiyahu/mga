@@ -5,15 +5,7 @@ import numpy as np
 import json
 import os
 import re
-from utils.util_funcs import safe_literal_eval
-
-
-def is_numeric(value):
-    try:
-        float(value)
-        return True
-    except ValueError:
-        return False
+from utils.util_funcs import safe_literal_eval, is_numeric
 
 
 def filter_ticks(ticks, lower_bound, upper_bound):
@@ -84,6 +76,16 @@ def extract_texts(ax, fig):
         })
 
     return texts
+
+
+def extract_bg_data(ax, fig):
+    fig_inch_size = fig.get_size_inches()
+    pixel_dims = fig_inch_size * fig.dpi
+    bbox = ax.get_position()
+    return {'plot-bb.height': bbox.height * pixel_dims[1],
+        'plot-bb.width': bbox.width * pixel_dims[0],
+        'plot-bb.x0': bbox.x0 * pixel_dims[0],
+        'plot-bb.y0': bbox.y0 * pixel_dims[1]}.copy()
 
 
 def extract_ax_data(ax, fig, x, y, name=None, data_type="visual-elements.lines", bar_chart_type=""):

@@ -16,7 +16,7 @@ from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
 from torchvision.models import resnet18, resnet34, resnet50, resnet101, resnet152
 from torch import nn
-from pytorch_lightning import Trainer
+# from pytorch_lightning import Trainer
 from torchvision.transforms.functional import pad
 from torch.utils.data import random_split
 # from lightning.pytorch import loggers as pl_loggers
@@ -132,29 +132,20 @@ class GraphClassifier(pl.LightningModule):
         return [optimizer], [scheduler]
 
 
-def resize_and_pad(img, size):
-    # Get original aspect ratio
+def resize_and_pad(img, size=224):
     aspect_ratio = img.size[0] / img.size[1]
-
     if aspect_ratio > 1: # width > height
         new_width = size
         new_height = int(size / aspect_ratio)
     else: # height > width
         new_height = size
         new_width = int(size * aspect_ratio)
-
-    # Resize the image
     img = img.resize((new_width, new_height))
-
-    # Calculate padding
     pad_left = (size - new_width) // 2
     pad_right = size - new_width - pad_left
     pad_top = (size - new_height) // 2
     pad_bottom = size - new_height - pad_top
-
-    # Pad the image
     img = pad(img, (pad_left, pad_top, pad_right, pad_bottom))
-
     return img
 
 
