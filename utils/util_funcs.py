@@ -9,6 +9,8 @@ from data.global_data import class_box_to_idx, outlier_images
 import random
 import shutil
 from typing import Union, List, Iterable
+from collections import defaultdict
+
 
 
 def extract_width_and_height(df):
@@ -363,7 +365,7 @@ def find_duplicate_indices(lst):
     duplicate_indices = []
 
     for index, item in enumerate(lst):
-        if item in value_indices:
+        if item in value_indices and item != "None_ocr_val":
             duplicate_indices.append(index)
         else:
             value_indices[item] = index
@@ -384,18 +386,17 @@ def lowercase_except_first_letter(arr):
     vectorized_modify_string = np.vectorize(modify_string)
     return vectorized_modify_string(arr)
 
+
 def graph_class2type(graph_class):
-    if graph_class == "line":
-        graph_type = "line_point"
-    if graph_class == "scatter":
-        graph_type = "scatter_point"
-    if graph_class == "bar":
-        graph_type = "line_point"
-    if graph_class == "bar":
-        graph_type = "line_point"
-    if graph_class == "dot":
-        graph_type = "dot_point"
-    return graph_type
+    graph_class_to_type_mapping = {
+        "line": "line_point",
+        "scatter": "scatter_point",
+        "horizontal_bar": "bar",
+        "vertical_bar": "bar",
+        "dot": "dot_point"
+    }
+
+    return graph_class_to_type_mapping.get(graph_class, graph_class)
 
 
 def save_bentech_res(img_path, res_foldr, benetech_score_eval, df_out=pd.DataFrame({}), df_gt=pd.DataFrame({}),
@@ -414,16 +415,80 @@ def save_bentech_res(img_path, res_foldr, benetech_score_eval, df_out=pd.DataFra
     df_gt.to_csv(df_gt_name)
 
 
+def create_dataframe(folder_path):
+    # List all the filenames inside the folder
+    file_names = os.listdir(folder_path)
+
+    # Create a dictionary to store file paths for each prefix (filename without suffix)
+    file_paths_dict = defaultdict(dict)
+    for file_name in file_names:
+        # Get the prefix and suffix from the file name
+        prefix, suffix = file_name.rsplit('_', 1)
+        suffix_type = 'score' if suffix.replace('.csv', '').isnumeric() else suffix.replace('.csv', '')
+
+        # Store the file path in the dictionary
+        file_path = os.path.join(folder_path, file_name)
+        file_paths_dict[prefix][suffix_type] = file_path
+
+    # Convert the dictionary to a list of dictionaries (one for each prefix)
+    file_paths_list = list(file_paths_dict.values())
+
+    # Initialize a list to store the data for each row in the new dataframe
+    data_list = []
+
+    # Iterate over each pair of files
+    for file_paths in tqdm(file_paths_list):
+        # Get the prefix (common part of the filename)
+        prefix = os.path.basename(file_paths['gt']).rsplit('_', 1)[0]
+
+        # Step 1: Extract the "filename" from the prefix
+        filename = prefix
+
+        # Step 2: Extract the "score" from the suffix of the "score" file (if available)
+        score = None
+        if 'score' in file_paths:
+            score = os.path.basename(file_paths['score']).rsplit('_', 1)[-1].replace('.csv', '')
+
+        # Step 3: Read the "chart_type" column from the "score" file (if available)
+        chart_type = None
+        if 'score' in file_paths:
+            score_df = pd.read_csv(file_paths['score'])
+            chart_type = score_df['chart_type'].iloc[0] if 'chart_type' in score_df.columns else None
+
+        # Step 4: Read the "chart_type" column from the "gt" file and treat it as "chart_type_gt" (if available)
+        chart_type_gt = None
+        if 'gt' in file_paths:
+            gt_df = pd.read_csv(file_paths['gt'])
+            chart_type_gt = gt_df['chart_type'].iloc[0] if 'chart_type' in gt_df.columns else None
+
+        # Append the data to the list
+        data_list.append({
+            'filename': filename,
+            'score': score,
+            'chart_type': chart_type,
+            'chart_type_gt': chart_type_gt
+        })
+
+    # Create a new dataframe with the data
+    result_df = pd.DataFrame(data_list)
+
+    return result_df
 
 
 if __name__ == "__main__":
-    labels_folder = r"C:\Users\Nir\Downloads\labels"
-    label_files = os.listdir(labels_folder)
-    column_names = ["class_id", "x_center", "y_center", "width", "height"]
-    for file in tqdm(label_files):
-        file_path = os.path.join(labels_folder, file)
-        df = pd.read_csv(file_path, sep=" ", header=None, names=column_names)
-        if not len(df):
-            print("no labels: ", file_path)
-    print("Done")
+    result_df = create_dataframe(r"D:\MGA\img_res")
+    result_df.to_csv(r"D:\MGA\img_res.csv")
+    result_df["score"] = result_df["score"].astype(int)
+    print(result_df["score"].mean())
+    print(result_df["score"][result_df["score"] > 0].mean())
+
+    # labels_folder = r"C:\Users\Nir\Downloads\labels"
+    # label_files = os.listdir(labels_folder)
+    # column_names = ["class_id", "x_center", "y_center", "width", "height"]
+    # for file in tqdm(label_files):
+    #     file_path = os.path.join(labels_folder, file)
+    #     df = pd.read_csv(file_path, sep=" ", header=None, names=column_names)
+    #     if not len(df):
+    #         print("no labels: ", file_path)
+    # print("Done")
 

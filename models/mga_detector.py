@@ -8,7 +8,7 @@ import copy
 import numpy as np
 
 class GraphDetecor:
-    def __init__(self, model, acc_device="cpu", ocr_mode="trocr", iou=0.5, conf=0.2, show_res=False):
+    def __init__(self, model, acc_device="cpu", ocr_mode="paddleocr", iou=0.5, conf=0.2, show_res=False):
         # TODO add cuda support
         if isinstance(model, str):
             self.model = YOLO(model)
@@ -16,7 +16,7 @@ class GraphDetecor:
             self.model = model
         self.ocr_mode = ocr_mode
         self.acc_device = acc_device
-        self.ocr_models = initialize_ocr_resources(ocr_mode, gpu=False)
+        self.ocr_models = initialize_ocr_resources(ocr_mode, gpu=acc_device=="cuda" and torch.cuda.is_available())
         self.iou = iou
         self.conf = conf
         self.show_res = show_res
@@ -60,7 +60,7 @@ class GraphDetecor:
         x_extracted_text, rot_45_x, rot_135_x = extract_text_from_boxes(img, x_tick_labels[:, :4], self.ocr_mode,
                                                                     self.acc_device =="cuda", *self.ocr_models)
         y_extracted_text, rot_45_y, rot_135_y = extract_text_from_boxes(img, y_tick_labels[:, :4], self.ocr_mode,
-                                                            self.acc_device =="cuda", *self.ocr_models)
+                                                                    self.acc_device =="cuda", *self.ocr_models)
         if rot_45_x: # change tick loc if there was a rotation
             x_tick_labels[:, 0] = x_tick_labels[:, 0] + x_tick_labels[:, 2] /2
         if rot_135_x: # change tick loc if there was a rotation

@@ -12,6 +12,8 @@ import numpy as np
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 import cv2
 import matplotlib.pyplot as plt
+from paddleocr import PaddleOCR
+from utils.util_funcs import lowercase_except_first_letter
 
 
 def preprocess_image(image):
@@ -42,6 +44,9 @@ def get_rotation_angle(thresh):
     angle = rect[-1]
     if left_tilt:
         angle += 90
+    w, h = rect[1]
+    if np.abs(angle) < 15 and h > 1.5*w:
+        angle = 90
 
     return angle
 
@@ -95,11 +100,14 @@ def rotate_and_crop(image):
     angle = detect_rotation(image)
     angle_45 = 35 < abs(angle) < 55
     angle_135 = 125 < abs(angle) < 155
-    if angle_45 or angle_135:
+    angle_90 = 80 < abs(angle) < 100
+    if angle_45 or angle_135 or angle_90:
         if angle_45:
             angle = 45
         if angle_135:
             angle = 135
+        if angle_90:
+            angle = 360
         image = straighten_image(image, angle-90)
         thresh = preprocess_image(image)
         image = extract_middle_contour(image, thresh)
@@ -108,7 +116,7 @@ def rotate_and_crop(image):
     return image, angle_45, angle_135
 
 
-def compute_roi_coordinates(x, y, w, h):
+def compute_roi_coordinates(x, y, w, h, offset=2):
     """
     Compute the coordinates of the region of interest.
 
@@ -119,11 +127,68 @@ def compute_roi_coordinates(x, y, w, h):
     Returns:
     - Coordinates (x1, y1, x2, y2) of the region of interest.
     """
-    x1 = int(floor(x - w / 2))
-    y1 = int(floor(y - h / 2))
-    x2 = int(ceil(x + w / 2))
-    y2 = int(ceil(y + h / 2))
+    x1 = int(floor(x - w / 2)) - offset
+    y1 = int(floor(y - h / 2)) - offset
+    x2 = int(ceil(x + w / 2)) + offset
+    y2 = int(ceil(y + h / 2)) + offset
     return x1, y1, x2, y2
+
+
+def get_dims(rois):
+    max_width = max(roi.shape[1] for roi in rois)
+    max_height = max(roi.shape[0] for roi in rois)
+    return int(max_width * 1.1), int(max_height * 1.1)
+
+
+def get_padding(roi, max_width, max_height):
+    pad_height = max_height - roi.shape[0]
+    pad_width = max_width - roi.shape[1]
+    pad_top = pad_height // 2
+    pad_bottom = pad_height - pad_top
+    pad_left = pad_width // 2
+    pad_right = pad_width - pad_left
+    return pad_top, pad_bottom, pad_left, pad_right
+
+
+def add_border(roi):
+    return np.pad(roi, ((5, 5), (5, 5), (0, 0)), 'constant', constant_values=0)
+
+
+def pad_roi(roi, max_width, max_height):
+    pad_top, pad_bottom, pad_left, pad_right = get_padding(roi, max_width, max_height)
+    return np.pad(roi, ((pad_top, pad_bottom), (pad_left, pad_right), (0, 0)), 'constant', constant_values=255)
+
+
+def get_side_length(padded_rois):
+    total_area = sum([roi.shape[0] * roi.shape[1] for roi in padded_rois])
+    return int(np.sqrt(total_area))
+
+
+def get_num_cols_rows(padded_rois, max_width, side_length):
+    num_cols = side_length // max_width
+    num_rows = int(np.ceil(len(padded_rois) / num_cols))
+    return num_cols, num_rows
+
+
+def create_blank_image(max_width, max_height):
+    return np.ones((max_height, max_width, 3), dtype=np.uint8) * 255
+
+
+def create_composite_image(padded_rois, num_cols):
+    num_blank_images = (num_cols - (len(padded_rois) % num_cols)) % num_cols
+    max_height, max_width = padded_rois[0].shape[:2]
+    padded_rois.extend([create_blank_image(max_width, max_height) for _ in range(num_blank_images)])
+
+    rows = [np.hstack(padded_rois[i:i + num_cols]) for i in range(0, len(padded_rois), num_cols)]
+    return np.vstack(rows)
+
+
+def preprocess_paddle_ocr(rois):
+    max_width, max_height = get_dims(rois)
+    padded_rois = [add_border(pad_roi(roi, max_width, max_height)) for roi in rois]
+    side_length = get_side_length(padded_rois)
+    num_cols, num_rows = get_num_cols_rows(padded_rois, max_width, side_length)
+    return create_composite_image(padded_rois, num_cols)
 
 
 def extract_with_easyocr(roi, reader):
@@ -168,7 +233,20 @@ def extract_with_trocr(roi, processor, model):
     """
     pixel_values = processor(images=roi, return_tensors="pt").pixel_values
     generated_ids = model.generate(pixel_values)
-    return processor.batch_decode(generated_ids, skip_special_tokens=True)
+    lower_res = lowercase_except_first_letter(processor.batch_decode(generated_ids, skip_special_tokens=True))
+    return lower_res
+
+
+# def extract_with_paddleocr(rois, paddleocr):
+#     conc_img = preprocess_paddle_ocr(rois)
+#     plt.imshow(conc_img)
+#     plt.show()
+#     paddleocr_res = paddleocr.ocr(conc_img)
+#     return [res[1][0] for res in paddleocr_res[0]]
+
+def extract_with_paddleocr(rois, paddleocr):
+    paddleocr_res = [paddleocr.ocr(roi, det=False) for roi in rois]
+    return [res[0][0][0] if res[0][0][0] != "" else "None_ocr_val" for res in paddleocr_res]
 
 
 def initialize_ocr_resources(mode, gpu=False):
@@ -182,21 +260,23 @@ def initialize_ocr_resources(mode, gpu=False):
     Returns:
     - Tuple containing the initialized resources. (reader for EasyOCR, processor and model for TrOCR)
     """
-    reader, processor, model = None, None, None
+    reader, processor, model, paddleocr = None, None, None, None
 
     if mode == "easyocr":
         reader = easyocr.Reader(['en'], gpu=gpu)
-    elif mode == "trocr":
-        processor = TrOCRProcessor.from_pretrained("microsoft/trocr-large-printed")
-        model = VisionEncoderDecoderModel.from_pretrained("microsoft/trocr-large-printed")
+    elif mode in ["trocr", "paddleocr"]:
+        processor = TrOCRProcessor.from_pretrained("microsoft/trocr-small-printed")
+        model = VisionEncoderDecoderModel.from_pretrained("microsoft/trocr-small-printed")
         model.config.max_length = 50
         if gpu:
             model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    if mode == "paddleocr":
+        paddleocr = PaddleOCR(use_angle_cls=True, lang='en')
+    return reader, processor, model, paddleocr
 
-    return reader, processor, model
 
-
-def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None, processor=None, model=None):
+def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None, processor=None, model=None,
+                            paddleocr=None):
     """
     Extract text from given bounding boxes in an image.
 
@@ -213,7 +293,7 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
 
     # Initialize required resources based on mode
     if all(x is None for x in (reader, processor, model)) and mode != "tesseract":
-        reader, processor, model = initialize_ocr_resources(mode, gpu=gpu)
+        reader, processor, model, paddleocr = initialize_ocr_resources(mode, gpu=gpu)
 
     for box in boxes:
         x1, y1, x2, y2 = compute_roi_coordinates(*box)
@@ -221,12 +301,17 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
         roi, rotated_45, rotated_135 = rotate_and_crop(roi)
         if mode == "easyocr":
             texts.append(extract_with_easyocr(roi, reader))
-        elif mode == "trocr":
+        elif mode in ["trocr", "paddleocr"]:
             rois.append(roi)
         else:
             texts.append(extract_with_tesseract(roi))
     if mode == "trocr":
         texts = extract_with_trocr(rois, processor, model)
+    if mode == "paddleocr":
+        texts = extract_with_paddleocr(rois, paddleocr)
+        # if "None_ocr_val" in texts:
+        #     mask = [text == "None" for text in texts]
+        #     texts[mask] = extract_with_trocr(rois[mask], processor, model)
     return texts, rotated_45, rotated_135
 
 
@@ -409,3 +494,16 @@ def classify_bars(image, bbox):
     except Exception as e:
         print(e)
         return "vertical_bar"
+
+
+def keep_one_class(folder_path, class_2_keep='6'):
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if file.endswith(".txt"):
+                with open(os.path.join(root, file), 'r') as f:
+                    lines = f.readlines()
+
+                with open(os.path.join(root, file), 'w') as f:
+                    for line in lines:
+                        if line.startswith(class_2_keep):
+                            f.write(line)

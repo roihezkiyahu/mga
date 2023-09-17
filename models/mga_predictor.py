@@ -5,6 +5,8 @@ import copy
 import os
 import pandas as pd
 import json
+import cv2
+from PIL import Image
 
 from utils.yolo_tools import (ticks_to_numeric, find_closest_ticks, get_ip_data,
                               get_categorical_output, fill_non_complete_prediction, get_numerical_output)
@@ -15,7 +17,6 @@ from models.eval_prediction import benetech_score
 from models.mga_classifier import GraphClassifier, resize_and_pad
 from models.mga_detector import GraphDetecor
 from data.global_data import indx_2_chart_label
-
 
 
 class MGAPredictor:
@@ -46,19 +47,20 @@ class MGAPredictor:
         if graph_type == "line_point": # line points tend to miss intrest points but x values are robust
             x_output_fill, y_output_fill = fill_non_complete_prediction(x_output, x_values, y_output, method="median")
             x_output, y_output = np.append(x_output, x_output_fill), np.append(y_output, y_output_fill)
-            out_order = np.argsort(x_ticks_xy[:, 1])
-            x_output, y_output = x_output[out_order], y_output[out_order]
         # Drop duplicates if exsits
         dups = find_duplicate_indices(x_output)
         if dups and len(x_output) > len(x_values):
             valid_indices = np.array([i for i in range(len(x_output)) if i not in dups])
             x_output, y_output = x_output[valid_indices], y_output[valid_indices]
+        if graph_type == "line_point":
+            out_order = [np.where(x_output == x)[0][0] for x in x_values]
+            x_output, y_output = x_output[out_order], y_output[out_order]
         # output_order = MGAPredictor.get_output_order(x_output)
         if not horizontal:
-            return lowercase_except_first_letter(x_output), y_output
+            return x_output, y_output
         else:
             out_order = np.argsort(interest_points[:, 1])
-            return x_output[out_order], lowercase_except_first_letter(y_output)[out_order]
+            return x_output[out_order], y_output[out_order]
 
     @staticmethod
     def postprocess_numeric(finsl_res):
@@ -97,11 +99,14 @@ class MGAPredictor:
         if self.classifier_method == "yolo":
             return self.yolo_model.get_graph_type(finsl_res, img)
         elif self.classifier_method == "classifier":
-            img_p = resize_and_pad(transforms.Grayscale(num_output_channels=1)(img)) #preprocess
-            graph_class = self.classifier(img_p)
-            graph_class = indx_2_chart_label[graph_class]
-            ["line", "scatter", "vertical_bar", "horizontal_bar", "dot"]
-            return graph_class, graph_class2type(graph_class)
+            img_pil = Image.fromarray(img)
+            grayscale_transform = transforms.Grayscale(num_output_channels=1)
+            img_p = resize_and_pad(grayscale_transform(img_pil))
+            img_p = transforms.ToTensor()(img_p)
+            self.classifier.eval()
+            graph_class = self.classifier(img_p.unsqueeze(0))
+            graph_class = indx_2_chart_label[torch.argmax(graph_class).item()]
+            return graph_class2type(graph_class), graph_class
 
     @staticmethod
     def final_output_to_df(final_output):
@@ -129,6 +134,7 @@ class MGAPredictor:
 
     def postprocess(self, finsl_res, img_name, img):
         graph_type, graph_class = self.get_graph_type_class(finsl_res, img)
+        print(graph_type, graph_class)
         if graph_type == "line_point":
             x_output, y_output = self.postprocess_line(finsl_res)
         if graph_type == "dot_point":
@@ -160,22 +166,24 @@ class MGAPredictor:
 if __name__ == "__main__":
     yolo_path = r"C:\Users\Nir\PycharmProjects\mga\weights\detector\img640_batch_32_lr1e4.pt"
     acc_device = "cuda" if torch.cuda.is_available() else "cpu"
-    ocr_mode = "trocr"
+    ocr_mode = "paddleocr"
     annot_folder = r"D:\train\annotations"
     res_foldr = r"D:\MGA\img_res"
     imgs_dir = r"D:\train\images"
     yolo_model = MGAPredictor(yolo_path, acc_device, ocr_mode)
     imgs_paths = [
-        r"D:\MGA\sorted_images\horizontal_bar\1bd01b1c40d8.jpg",
-        r"D:\MGA\sorted_images\vertical_bar\0ace695dea6b.jpg",
-        r"D:\MGA\sorted_images\vertical_bar\029867ef63f2.jpg",
+        # r"D:\train\images\000b92c3b098.jpg"
+        # r"D:\train\images\0005413054c9.jpg"
+        # r"D:\MGA\sorted_images\line\00a68f5c2a93.jpg",
+        # r"D:\MGA\sorted_images\line\02a23ca8f04b.jpg",
+        # r"D:\MGA\sorted_images\line\029eb96f26d9.jpg",
+        # r"D:\MGA\sorted_images\scatter\029d1a7e17d2.jpg",
+        # r"D:\MGA\sorted_images\horizontal_bar\1bd01b1c40d8.jpg",
+        # r"D:\MGA\sorted_images\vertical_bar\0ace695dea6b.jpg",
+        # r"D:\MGA\sorted_images\vertical_bar\029867ef63f2.jpg",
         # r"D:\MGA\sorted_images\dot\00ae5cc822f0.jpg",
         # r"D:\MGA\sorted_images\vertical_bar\0ad4f865ce03.jpg",
         # r"D:\MGA\sorted_images\dot\00b1597b6970.jpg",
-        r"D:\MGA\sorted_images\line\0a225ebe30f6.jpg",
-        r"D:\MGA\sorted_images\line\02a23ca8f04b.jpg",
-        r"D:\MGA\sorted_images\line\029eb96f26d9.jpg",
-        r"D:\MGA\sorted_images\scatter\029d1a7e17d2.jpg",
         # r"D:\MGA\sorted_images\scatter\00ade5dc4f7a.jpg",
         # r"D:\MGA\sorted_images\scatter\1a3d883bf388.jpg"
                   ]
@@ -186,4 +194,4 @@ if __name__ == "__main__":
             save_bentech_res(img_path, res_foldr, benetech_score_eval, df_out, df_gt)
         except Exception as e:
             print(e)
-            save_bentech_res(img_path, res_foldr, benetech_score_eval, failed=True)
+            save_bentech_res(img_path, res_foldr, "", failed=True)
