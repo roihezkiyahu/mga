@@ -19,7 +19,7 @@ from utils.util_funcs import lowercase_except_first_letter
 def preprocess_image(image):
     """Convert the image to grayscale and threshold."""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    kernel_size = (image.shape[1] // 10, image.shape[0] // 10)
+    kernel_size = (image.shape[1] // 5, image.shape[0] // 5)
     kernel_size = (kernel_size[0] + 1 if kernel_size[0] % 2 == 0 else kernel_size[0],
                    kernel_size[1] + 1 if kernel_size[1] % 2 == 0 else kernel_size[1])
     kernel = np.ones(kernel_size, np.uint8)
@@ -44,8 +44,7 @@ def get_rotation_angle(thresh):
     angle = rect[-1]
     if left_tilt:
         angle += 90
-    w, h = rect[1]
-    if np.abs(angle) < 15 and h > 1.5*w:
+    if thresh.shape[0] > thresh.shape[1]*1.5:
         angle = 90
 
     return angle
@@ -94,7 +93,7 @@ def extract_middle_contour(image, thresh):
     return cropped
 
 
-def rotate_and_crop(image):
+def rotate_and_crop(image, x_label):
     if not isinstance(image, np.ndarray):
         image = np.array(image)
     angle = detect_rotation(image)
@@ -107,7 +106,10 @@ def rotate_and_crop(image):
         if angle_135:
             angle = 135
         if angle_90:
-            angle = 360
+            if x_label:
+                angle = 360
+            else:
+                angle = 180
         image = straighten_image(image, angle-90)
         thresh = preprocess_image(image)
         image = extract_middle_contour(image, thresh)
@@ -276,7 +278,7 @@ def initialize_ocr_resources(mode, gpu=False):
 
 
 def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None, processor=None, model=None,
-                            paddleocr=None):
+                            paddleocr=None, x_label=False):
     """
     Extract text from given bounding boxes in an image.
 
@@ -298,7 +300,7 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
     for box in boxes:
         x1, y1, x2, y2 = compute_roi_coordinates(*box)
         roi = img_pil.crop((x1, y1, x2, y2))
-        roi, rotated_45, rotated_135 = rotate_and_crop(roi)
+        roi, rotated_45, rotated_135 = rotate_and_crop(roi, x_label)
         if mode == "easyocr":
             texts.append(extract_with_easyocr(roi, reader))
         elif mode in ["trocr", "paddleocr"]:
@@ -351,7 +353,7 @@ def point_to_numeric(val, chars_to_remove):
         return np.inf
 
 
-def ticks_to_numeric(finsl_res, tick_to_turn=["y_ticks"], chars_to_remove=["%", "$"]):
+def ticks_to_numeric(finsl_res, tick_to_turn=["y_ticks"], chars_to_remove=["%", "$", ","]):
     x_y, labels, values, _ = finsl_res
     values = np.array(values, dtype=object)
     if "y_ticks" in tick_to_turn:
@@ -453,6 +455,9 @@ def fill_non_complete_prediction(x_output, x_values, y_output, method="median"):
     # #might want to try some smarter prediciton based on close points
     # not_in_x_output_index = np.where(np.isin(x_values, not_in_x_output))[0]
     # not_in_x_output_xy = x_ticks_xy[not_in_x_output_index]
+    if isinstance(method, int):
+        new_y_out = [method] * len(not_in_x_output)
+        return not_in_x_output, new_y_out
     if method == "median":
         med_val = np.median(y_output)
         new_y_out = [med_val] * len(not_in_x_output)

@@ -58,7 +58,8 @@ class GraphDetecor:
         x_tick_labels, y_tick_labels = tick_label2axis_label(box_torch)
         y_tick_labels = sort_torch_by_col(y_tick_labels, 1)
         x_extracted_text, rot_45_x, rot_135_x = extract_text_from_boxes(img, x_tick_labels[:, :4], self.ocr_mode,
-                                                                    self.acc_device =="cuda", *self.ocr_models)
+                                                                    self.acc_device =="cuda", *self.ocr_models,
+                                                                        x_label=True)
         y_extracted_text, rot_45_y, rot_135_y = extract_text_from_boxes(img, y_tick_labels[:, :4], self.ocr_mode,
                                                                     self.acc_device =="cuda", *self.ocr_models)
         if rot_45_x: # change tick loc if there was a rotation

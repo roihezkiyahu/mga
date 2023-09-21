@@ -9,6 +9,8 @@ for example if a chart is line and also dots were detected, ~~categorical X valu
 numerical values for scatter plots~~
 - ~~90 deg detection and rotation~~
 - validate results (run on validation set, then aggregate the results df)
+- run on kaggle
+- check a combintion of yolo as clasifier and regular clasifier (maybe just for bars)
 
 ## runtime
 - CUDA
@@ -40,6 +42,7 @@ should include x,y,type,value~~
 - ~~choose OCR (easyoct, tesserect, trocr, pp-ocr(paddle)). currently trocr seem to work the best did not try pp-ocr~~
 - ~~get direction of rotation, check if improves trocr~~ improves on small by eye test
 - ~~connect to detector~~
+- fine tune models on our data
 pddleocr is faster then trocr (> 20X 3sec vs 1 min of image) but seem to be less robust,
 currently using paddleocr as defualt and trocr to re-predict data that paddle missed
 

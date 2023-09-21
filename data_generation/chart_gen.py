@@ -1,14 +1,13 @@
 import matplotlib.ticker as ticker
-import numpy as np
-from sklearn.linear_model import LinearRegression
+# from sklearn.linear_model import LinearRegression
 import pandas as pd
 from tqdm import tqdm
-import random
 from data_generation.gen_ax_fig import *
 from plot_functions.mga_plt import plot_image_with_boxes
-from utils.util_funcs import get_bboxes, safe_literal_eval, annotation_to_labels
+from utils.util_funcs import get_bboxes, safe_literal_eval, annotation_to_labels, linear_regression
 import matplotlib.transforms as mtransforms
 import matplotlib.pyplot as plt
+# from scipy import stats
 plt.ticklabel_format(style='plain')
 
 
@@ -97,8 +96,9 @@ def generate_scatter_chart(x, y, color='blue', grid_style="both", theme="white",
     set_ax_loc_rotate(ax, False)
 
     if show_regression_line:
-        model = LinearRegression().fit(np.array(x).reshape(-1, 1), y)
-        y_pred = model.predict(np.array(x).reshape(-1, 1))
+        # model = LinearRegression().fit(np.array(x).reshape(-1, 1), y)
+        # y_pred = model.predict(np.array(x).reshape(-1, 1))
+        y_pred, slope, intercept, r_squared = linear_regression(x, y)
         ax.plot(x, y_pred, color='red', linestyle='--', label='Regression Line')
 
     data_dict = {
@@ -182,7 +182,7 @@ def random_generate_bar_chart(categories, values, x_title=None, y_title=None, gr
     theme = np.random.choice(['dark_background', 'default', 'grayscale', 'dark_gray'], p=[0.2, 0.5, 0.2, 0.1])
     if theme == 'dark_background' and color == "black":
         theme = 'default'
-    orientation = "horizontal" if random.random() < 0.1 else "vertical"  # 10% chance for horizontal
+    orientation = "horizontal" if random.random() < 0.25 else "vertical"  # 10% chance for horizontal
     if os.sep in name:
         name = os.path.join(os.path.dirname(name), f"{orientation}_{os.path.basename(name)}")
     else:
@@ -477,12 +477,14 @@ def generate_random_bg_plot(x_title=None, y_title=None, graph_title=None, name="
 if __name__ == "__main__":
     data_series_path = r"D:\MGA\data_series.csv"
     data_series = preprocess_data_series(pd.read_csv(data_series_path))
-    generated_imgs = r"D:\MGA\bg_gen_charts"
-    # data_types = ["scat"]# ["line", "scat", "dot", "bar"]
-    # data_list = generate_n_plots(data_series, generated_imgs, n=2500, data_types=data_types,
-    #                              show=False, clear_list=True)
-    # df = pd.DataFrame.from_records(data_list)
-    # df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
+    generated_imgs = r"D:\MGA\gen_charts"
+    generated_imgs_bg = r"D:\MGA\bg_gen_charts"
+
+    data_types = ["line", "scat", "dot", "bar"]
+    data_list = generate_n_plots(data_series, generated_imgs, n=8000, data_types=data_types,
+                                 show=False, clear_list=True)
+    df = pd.DataFrame.from_records(data_list)
+    df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
 
     # x_data_dynamic, y_data_dynamic, titels = generate_dynamic_data_point(data_series)
     #
@@ -491,9 +493,9 @@ if __name__ == "__main__":
     # df = pd.DataFrame.from_records(data_list)
     # df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
 
-    for i in tqdm(range(1000)):
+    for i in tqdm(range(4000)):
         x_data_dynamic, y_data_dynamic, titels = generate_dynamic_data_point(data_series)
-        generate_random_bg_plot(**titels, name="bg", show=False, folder=generated_imgs)
+        generate_random_bg_plot(**titels, name="bg", show=False, folder=generated_imgs_bg)
 
     # data_dict, final_name = random_generate_bar_chart(["A", "B", "C", "D", "E", "F"], [1,2,3,4,5,6],
     #                                                   name=os.path.join(generated_imgs, "bar"))

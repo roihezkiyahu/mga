@@ -1,19 +1,10 @@
 import matplotlib.pyplot as plt
-import numpy as np
-import matplotlib.ticker as ticker
-import random
-from sklearn.linear_model import LinearRegression
-import numpy as np
-import json
 import os
-import re
 from PIL import Image, ImageChops
 import cv2
 import matplotlib.patches as patches
 import pandas as pd
 from IPython.display import display
-from tqdm import tqdm
-import random
 from utils.util_funcs import load_bounding_boxes
 from data.global_data import box_classes, colors_list
 try:
@@ -22,7 +13,7 @@ except ImportError:
     chart_labels = ["line", "scatter", "vertical_bar", "horizontal_bar", "dot"]
     chart_labels_2_indx = {class_name: idx for idx, class_name in enumerate(chart_labels)}
     indx_2_chart_label = {idx: class_name for idx, class_name in enumerate(chart_labels)}
-from sklearn.metrics import confusion_matrix
+# from sklearn.metrics import confusion_matrix
 import seaborn as sns
 
 
@@ -170,9 +161,12 @@ def plot_misclassified_images(inputs, labels, preds, names=[]):
 
 
 def compute_and_plot_confusion_matrix(all_labels, all_preds):
-    cm = confusion_matrix(all_labels, all_preds)
+    data = {'Actual': all_labels, 'Predicted': all_preds}
+    df = pd.DataFrame(data)
+    confusion_matrix = pd.crosstab(df['Actual'], df['Predicted'], rownames=['Actual'], colnames=['Predicted'])
+
     plt.figure(figsize=(10, 8))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+    sns.heatmap(confusion_matrix, annot=True, fmt="d", cmap="Blues")
     plt.ylabel('Actual labels')
     plt.xlabel('Predicted labels')
     plt.title('Confusion Matrix')

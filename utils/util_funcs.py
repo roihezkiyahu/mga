@@ -35,6 +35,25 @@ def extract_width_and_height(df):
     return widths, heights
 
 
+def linear_regression(x, y):
+    n = len(x)
+    sum_x = sum(x)
+    sum_y = sum(y)
+    sum_xy = sum(xi * yi for xi, yi in zip(x, y))
+    sum_x_squared = sum(xi ** 2 for xi in x)
+
+    slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x_squared - sum_x ** 2)
+    intercept = (sum_y - slope * sum_x) / n
+
+    y_pred = [slope * xi + intercept for xi in x]
+
+    y_mean = sum_y / n
+    ss_total = sum((yi - y_mean) ** 2 for yi in y)
+    ss_residual = sum((yi - yhat) ** 2 for yi, yhat in zip(y, y_pred))
+    r_squared = 1 - (ss_residual / ss_total)
+
+    return y_pred, slope, intercept, r_squared
+
 def safe_literal_eval(value):
     try:
         return ast.literal_eval(value)
@@ -354,7 +373,7 @@ def is_numeric(value):
         return check_numeric(value)
 
 
-def remove_characters(s, chars_to_remove):
+def remove_characters(s, chars_to_remove=[",", "$", ""]):
     for char in chars_to_remove:
         s = s.replace(char, "")
     return s
@@ -445,7 +464,7 @@ def create_dataframe(folder_path):
         filename = prefix
 
         # Step 2: Extract the "score" from the suffix of the "score" file (if available)
-        score = None
+        score = '0'
         if 'score' in file_paths:
             score = os.path.basename(file_paths['score']).rsplit('_', 1)[-1].replace('.csv', '')
 
@@ -476,11 +495,23 @@ def create_dataframe(folder_path):
 
 
 if __name__ == "__main__":
+    # sort_yolo_folders(r"D:\train\images", r"D:\MGA\labels", base_dir=r"D:\MGA\dataset")
+    splits = pd.read_csv(r"D:\MGA\data_split.csv")
     result_df = create_dataframe(r"D:\MGA\img_res")
     result_df.to_csv(r"D:\MGA\img_res.csv")
     result_df["score"] = result_df["score"].astype(int)
+    result_df["score_0"] = result_df["score"] == 0
     print(result_df["score"].mean())
+    print(result_df.groupby("chart_type")["score"].mean())
+    print(result_df.groupby("chart_type")["score_0"].mean())
     print(result_df["score"][result_df["score"] > 0].mean())
+
+    result_df_valid = result_df[np.isin(result_df["filename"], splits["name"][splits["type"] == "valid"])]
+    print(len(result_df_valid))
+    print(result_df_valid["score"].mean())
+    print(result_df_valid.groupby("chart_type")["score"].mean())
+    print(result_df_valid.groupby("chart_type")["score_0"].mean())
+    print(result_df_valid["score"][result_df_valid["score"] > 0].mean())
 
     # labels_folder = r"C:\Users\Nir\Downloads\labels"
     # label_files = os.listdir(labels_folder)

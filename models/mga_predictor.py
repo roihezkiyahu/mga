@@ -8,6 +8,7 @@ import json
 import cv2
 from PIL import Image
 
+from data.global_data import class_box_to_idx, outlier_images
 from utils.yolo_tools import (ticks_to_numeric, find_closest_ticks, get_ip_data,
                               get_categorical_output, fill_non_complete_prediction, get_numerical_output)
 
@@ -20,11 +21,11 @@ from data.global_data import indx_2_chart_label
 
 
 class MGAPredictor:
-    def __init__(self, model, acc_device="cpu", ocr_mode="trocr", classifier_method="classifier",
+    def __init__(self, model, acc_device="cpu", ocr_mode="trocr", classifier_method="comb",
                  classifier_path=r"..\weights\classifier\resnet_34_999.pth"):
         self.yolo_model = GraphDetecor(model, acc_device, ocr_mode)
         self.classifier_method = classifier_method
-        if classifier_method == "classifier":
+        if classifier_method in ["classifier", "comb"]:
             model = GraphClassifier(num_classes=5, resnet_model=34)
             model.load_state_dict(torch.load(classifier_path))
             self.classifier = model
@@ -37,6 +38,35 @@ class MGAPredictor:
         return np.argsort(x_output)
 
     @staticmethod
+    def drop_dups(x_output, y_output, x_values, y_values, horizontal=False):
+        if not horizontal:
+            dups = find_duplicate_indices(x_output)
+            if dups and len(x_output) > len(x_values):
+                valid_indices = np.array([i for i in range(len(x_output)) if i not in dups])
+                x_output, y_output = x_output[valid_indices], y_output[valid_indices]
+            return x_output, y_output
+
+        dups = find_duplicate_indices(y_output)
+        if dups and len(y_output) > len(y_values):
+            valid_indices = np.array([i for i in range(len(y_output)) if i not in dups])
+            x_output, y_output = x_output[valid_indices], y_output[valid_indices]
+        return x_output, y_output
+
+
+    @staticmethod
+    def fill_output_missing_val(graph_type, x_output, y_output, x_values, y_values, horizontal=False):
+        x_output_fill = []
+        if graph_type in ["line_point", 'dot_point']: # line points tend to miss intrest points but x values are robust
+            method = "median" if graph_type == "line_point" else 0
+            x_output_fill, y_output_fill = fill_non_complete_prediction(x_output, x_values, y_output, method=method)
+            x_output, y_output = np.append(x_output, x_output_fill), np.append(y_output, y_output_fill)
+        if horizontal: # line points tend to miss intrest points but x values are robust
+            y_output_fill, x_output_fill = fill_non_complete_prediction(y_output, y_values, x_output, method="median")
+            x_output, y_output = np.append(x_output, x_output_fill), np.append(y_output, y_output_fill)
+        filled = len(x_output_fill) > 0
+        return x_output, y_output, filled
+
+    @staticmethod
     def postprocess_cat(finsl_res, graph_type, horizontal=False):
         x_y, labels, values = ticks_to_numeric(finsl_res, ["y_ticks"] if not horizontal else ["x_ticks"])
         closest_ticks, x_ticks_xy, y_ticks_xy = find_closest_ticks(x_y, labels, graph_type, 1 if not horizontal else 2,
@@ -44,23 +74,20 @@ class MGAPredictor:
         interest_points, x_values, y_values, y_coords, x_coords = get_ip_data(x_y, labels, values, graph_type, True)
         y_output, x_output = get_categorical_output(interest_points, closest_ticks, x_values, y_values, y_coords,
                                                     None if not horizontal else x_coords)
-        if graph_type == "line_point": # line points tend to miss intrest points but x values are robust
-            x_output_fill, y_output_fill = fill_non_complete_prediction(x_output, x_values, y_output, method="median")
-            x_output, y_output = np.append(x_output, x_output_fill), np.append(y_output, y_output_fill)
         # Drop duplicates if exsits
-        dups = find_duplicate_indices(x_output)
-        if dups and len(x_output) > len(x_values):
-            valid_indices = np.array([i for i in range(len(x_output)) if i not in dups])
-            x_output, y_output = x_output[valid_indices], y_output[valid_indices]
-        if graph_type == "line_point":
+        x_output, y_output = MGAPredictor.drop_dups(x_output, y_output, x_values, y_values, horizontal)
+
+        x_output, y_output, filled = MGAPredictor.fill_output_missing_val(graph_type, x_output, y_output,
+                                                                          x_values, y_values, horizontal)
+        if graph_type in ["line_point", 'dot_point'] and filled:
             out_order = [np.where(x_output == x)[0][0] for x in x_values]
             x_output, y_output = x_output[out_order], y_output[out_order]
+        if horizontal and filled:
+            out_order = [np.where(y_output == y)[0][0] for y in y_values]
+            x_output, y_output = x_output[out_order], y_output[out_order]
         # output_order = MGAPredictor.get_output_order(x_output)
-        if not horizontal:
-            return x_output, y_output
-        else:
-            out_order = np.argsort(interest_points[:, 1])
-            return x_output[out_order], y_output[out_order]
+        return x_output, y_output
+
 
     @staticmethod
     def postprocess_numeric(finsl_res):
@@ -96,9 +123,13 @@ class MGAPredictor:
         return MGAPredictor.postprocess_numeric(finsl_res)
 
     def get_graph_type_class(self, finsl_res, img=None):
+        if self.classifier_method == "comb":
+            graph_type, graph_class = self.yolo_model.get_graph_type(finsl_res, img)
+            if graph_type != "bar": # yolo doew not detect well horizontal vs vertical graphs
+                return graph_type, graph_class
         if self.classifier_method == "yolo":
             return self.yolo_model.get_graph_type(finsl_res, img)
-        elif self.classifier_method == "classifier":
+        if self.classifier_method in ["classifier", "comb"]:
             img_pil = Image.fromarray(img)
             grayscale_transform = transforms.Grayscale(num_output_channels=1)
             img_p = resize_and_pad(grayscale_transform(img_pil))
@@ -171,9 +202,17 @@ if __name__ == "__main__":
     res_foldr = r"D:\MGA\img_res"
     imgs_dir = r"D:\train\images"
     yolo_model = MGAPredictor(yolo_path, acc_device, ocr_mode)
-    imgs_paths = [
-        # r"D:\train\images\000b92c3b098.jpg"
-        # r"D:\train\images\0005413054c9.jpg"
+    imgs_paths_0 = [
+        # r"D:\train\images\21a625d5a3c0.jpg",
+        # r"D:\train\images\03abc1b29c7b.jpg",
+        # r"D:\train\images\19d17b7e660e.jpg",
+        #
+        # r"D:\train\images\8fcc9d293aac.jpg",
+        # r"D:\train\images\1d4ab0ee2d85.jpg",
+        # r"D:\train\images\315a7d63a89a.jpg",
+        #
+        # r"D:\train\images\268b5b9dad33.jpg",
+        # r"D:\train\images\3093824f7c4f.jpg",
         # r"D:\MGA\sorted_images\line\00a68f5c2a93.jpg",
         # r"D:\MGA\sorted_images\line\02a23ca8f04b.jpg",
         # r"D:\MGA\sorted_images\line\029eb96f26d9.jpg",
@@ -187,9 +226,15 @@ if __name__ == "__main__":
         # r"D:\MGA\sorted_images\scatter\00ade5dc4f7a.jpg",
         # r"D:\MGA\sorted_images\scatter\1a3d883bf388.jpg"
                   ]
-    imgs_paths = imgs_paths + [os.path.join(imgs_dir, img) for img in os.listdir(imgs_dir)]
+    res_files = [file.split("_")[0] for file in os.listdir(res_foldr)]
+    imgs_paths = imgs_paths_0 + [os.path.join(imgs_dir, img) for img in os.listdir(imgs_dir)
+                                 if img.split(".")[0] not in outlier_images]
     for img_path in imgs_paths:
         try:
+            img_name = os.path.basename(img_path).split(".")[0]
+            if img_name in res_files and not np.any([img_name in img_p for img_p in imgs_paths_0]):
+                print(img_name, " already processes")
+                continue
             finsl_res_out, benetech_score_eval, df_out, df_gt = yolo_model.get_bentech_score(img_path, annot_folder)
             save_bentech_res(img_path, res_foldr, benetech_score_eval, df_out, df_gt)
         except Exception as e:
