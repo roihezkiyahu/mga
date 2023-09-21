@@ -158,9 +158,11 @@ def get_bboxes(row, width=12, gen=False, only_plot_area=False):
     if elements_dots:
         if len(elements_dots) > 1 and gen:
             res_frame = pd.DataFrame(elements_dots)
+            y_val = pd.DataFrame(row["data-series"])["y"]
         else:
             res_frame = pd.DataFrame(elements_dots[0])
         last_x_min = 0
+        i = 0
         while True:
             x_min = res_frame["x"][last_x_min < res_frame["x"]].min()
             valid_range = res_frame[(last_x_min < res_frame["x"]) & (res_frame["x"] < x_min + 10)]
@@ -171,6 +173,8 @@ def get_bboxes(row, width=12, gen=False, only_plot_area=False):
                 break
             if len(valid_range) > 1:
                 dot_size = np.nanmedian(np.diff(valid_range["y"].sort_values()))
+            elif gen:
+                dot_size = ((row["plot-bb.y0"] + row["plot-bb.height"]) - valid_range["y"].max())/y_val[i]
             else:
                 dot_size = ((row["plot-bb.y0"] + row["plot-bb.height"]) - valid_range["y"].max())*2
             boxes.append({
@@ -180,6 +184,7 @@ def get_bboxes(row, width=12, gen=False, only_plot_area=False):
                 "width": width,
                 "height": width
             })
+            i+=1
 
     elements_lines = safe_literal_eval(row["visual-elements.lines"])
     if elements_lines:

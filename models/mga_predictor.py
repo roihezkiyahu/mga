@@ -79,6 +79,7 @@ class MGAPredictor:
 
         x_output, y_output, filled = MGAPredictor.fill_output_missing_val(graph_type, x_output, y_output,
                                                                           x_values, y_values, horizontal)
+        # TODO method for using 2 closest points for filling na's
         if graph_type in ["line_point", 'dot_point'] and filled:
             out_order = [np.where(x_output == x)[0][0] for x in x_values]
             x_output, y_output = x_output[out_order], y_output[out_order]
@@ -199,7 +200,7 @@ if __name__ == "__main__":
     acc_device = "cuda" if torch.cuda.is_available() else "cpu"
     ocr_mode = "paddleocr"
     annot_folder = r"D:\train\annotations"
-    res_foldr = r"D:\MGA\img_res"
+    res_foldr = r"G:\My Drive\MGA\img_res_new" #r"D:\MGA\img_res"
     imgs_dir = r"D:\train\images"
     yolo_model = MGAPredictor(yolo_path, acc_device, ocr_mode)
     imgs_paths_0 = [

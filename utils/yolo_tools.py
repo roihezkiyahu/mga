@@ -299,6 +299,7 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
 
     for box in boxes:
         x1, y1, x2, y2 = compute_roi_coordinates(*box)
+        y1 += int((y2-y1)*0.1)
         roi = img_pil.crop((x1, y1, x2, y2))
         roi, rotated_45, rotated_135 = rotate_and_crop(roi, x_label)
         if mode == "easyocr":
