@@ -364,8 +364,12 @@ def sort_torch_by_col(torch_input, col=1):
     return torch_input[torch_input[:, col].argsort()]
 
 
-def is_numeric(value):
+def is_numeric(value, dot=False):
     def check_numeric(single_value):
+        if isinstance(single_value, float) or isinstance(single_value, int):
+            return True
+        if "+" in single_value:
+            return False
         try:
             float(single_value)
             return True
@@ -373,15 +377,35 @@ def is_numeric(value):
             return False
 
     if isinstance(value, Iterable):
-        return all(check_numeric(single_value) for single_value in value)
+        if not dot:
+            return all(check_numeric(single_value) for single_value in value)
+        else:
+            numeric_bool = [check_numeric(single_value) for single_value in value]
+            if np.mean(numeric_bool) > 0.75:
+                if "+" in value[-1]:
+                    return False
+                return True
+            return False
     else:
         return check_numeric(value)
 
 
-def remove_characters(s, chars_to_remove=[",", "$", ""]):
+def remove_characters(s, chars_to_remove=[",", "$", "", "C"]):
     for char in chars_to_remove:
         s = s.replace(char, "")
+    if "K" in s:
+        s = s.replace("K", "")
+        s = float(s)*1000
     return s
+
+
+def replace_infinite(input_list):
+    if not isinstance(input_list, list):
+        input_list = list(input_list)
+    mask = np.isnan(input_list) | np.isinf(input_list)
+    array = np.array(input_list)
+    array[mask] = 0
+    return list(array)
 
 
 def find_duplicate_indices(lst):
@@ -446,6 +470,8 @@ def create_dataframe(folder_path):
     # Create a dictionary to store file paths for each prefix (filename without suffix)
     file_paths_dict = defaultdict(dict)
     for file_name in file_names:
+        if not file_name.endswith(".csv"):
+            continue
         # Get the prefix and suffix from the file name
         prefix, suffix = file_name.rsplit('_', 1)
         suffix_type = 'score' if suffix.replace('.csv', '').isnumeric() else suffix.replace('.csv', '')
@@ -498,12 +524,19 @@ def create_dataframe(folder_path):
 
     return result_df
 
+def remove_failed_files(folder_path):
+    for file in [file.split("_")[0] for file in os.listdir(folder_path) if file.endswith("_fail.csv")]:
+        gt_file = os.path.join(folder_path, f"{file}_gt.csv")
+        fail_file = os.path.join(folder_path, f"{file}_fail.csv")
+        os.remove(gt_file)
+        os.remove(fail_file)
+
 
 if __name__ == "__main__":
     # sort_yolo_folders(r"D:\train\images", r"D:\MGA\labels", base_dir=r"D:\MGA\dataset")
     splits = pd.read_csv(r"D:\MGA\data_split.csv")
-    result_df = create_dataframe(r"D:\MGA\img_res")
-    result_df.to_csv(r"D:\MGA\img_res.csv")
+    result_df = create_dataframe(r"G:\My Drive\MGA\img_res_new")
+    result_df.to_csv(r"G:\My Drive\MGA\img_res_new.csv")
     result_df["score"] = result_df["score"].astype(int)
     result_df["score_0"] = result_df["score"] == 0
     print(result_df["score"].mean())

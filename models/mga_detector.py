@@ -8,7 +8,8 @@ import copy
 import numpy as np
 
 class GraphDetecor:
-    def __init__(self, model, acc_device="cpu", ocr_mode="paddleocr", iou=0.5, conf=0.2, show_res=False):
+    def __init__(self, model, acc_device="cpu", ocr_mode="paddleocr", iou=0.5, conf=0.2, show_res=False,
+                 ocr_model_paths={}):
         # TODO add cuda support
         if isinstance(model, str):
             self.model = YOLO(model)
@@ -16,7 +17,8 @@ class GraphDetecor:
             self.model = model
         self.ocr_mode = ocr_mode
         self.acc_device = acc_device
-        self.ocr_models = initialize_ocr_resources(ocr_mode, gpu=acc_device=="cuda" and torch.cuda.is_available())
+        self.ocr_models = initialize_ocr_resources(ocr_mode, gpu=acc_device=="cuda" and torch.cuda.is_available(),
+                                                   model_paths=ocr_model_paths)
         self.iou = iou
         self.conf = conf
         self.show_res = show_res
@@ -36,6 +38,8 @@ class GraphDetecor:
             graph_class = classify_bars(img, finsl_res[3])
         if graph_type == "scatter_point":
             graph_class = "scatter"
+        if graph_type == "plot_bb":
+            graph_class = "plot_bb"
         return graph_type, graph_class
 
     def predict(self, img_list):

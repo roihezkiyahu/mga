@@ -4,9 +4,10 @@ import pandas as pd
 from tqdm import tqdm
 from data_generation.gen_ax_fig import *
 from plot_functions.mga_plt import plot_image_with_boxes
-from utils.util_funcs import get_bboxes, safe_literal_eval, annotation_to_labels, linear_regression
+from utils.util_funcs import get_bboxes, safe_literal_eval, annotation_to_labels, linear_regression, is_numeric
 import matplotlib.transforms as mtransforms
 import matplotlib.pyplot as plt
+from itertools import chain
 # from scipy import stats
 plt.ticklabel_format(style='plain')
 
@@ -175,14 +176,15 @@ def generate_bar_chart(categories, values, color='blue', grid_style="both", them
     return data_dict, final_name
 
 
-def random_generate_bar_chart(categories, values, x_title=None, y_title=None, graph_title=None, name=None, show=True):
+def random_generate_bar_chart(categories, values, x_title=None, y_title=None, graph_title=None, name=None, show=True,
+                              horizontal_prob=0.25):
     color_palette = ['blue', 'red', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta', 'brown', 'pink', "black"]
     color = random.choice(color_palette)
     grid_style = np.random.choice(["both", "x", "y", "none"], p=[0.1, 0.1, 0.1, 0.7])
     theme = np.random.choice(['dark_background', 'default', 'grayscale', 'dark_gray'], p=[0.2, 0.5, 0.2, 0.1])
     if theme == 'dark_background' and color == "black":
         theme = 'default'
-    orientation = "horizontal" if random.random() < 0.25 else "vertical"  # 10% chance for horizontal
+    orientation = "horizontal" if random.random() < horizontal_prob else "vertical"  # 10% chance for horizontal
     if os.sep in name:
         name = os.path.join(os.path.dirname(name), f"{orientation}_{os.path.basename(name)}")
     else:
@@ -381,6 +383,16 @@ def preprocess_data_series(data_series):
     return data_series
 
 
+def create_long_y_df(data_series):
+    all_xes = set(chain.from_iterable(data_series["x"].to_list()))
+    all_xes_str = {x for x in all_xes if not is_numeric(x)}
+    sorted_all_xes_str = sorted(all_xes_str, key=len)
+
+    all_ys = set(chain.from_iterable(data_series["y"].to_list()))
+    all_ys_str = {y for y in all_ys if not is_numeric(y)}
+    sorted_all_ys_str = sorted(all_ys_str, key=len)
+
+
 def postprocess_data_gen(data_dict, final_name, data_list, only_plot_area=False):
     data_dict["name"] = os.path.basename(final_name)
     data_list = np.append(data_list, data_dict)
@@ -461,6 +473,34 @@ def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat
     return data_list
 
 
+def generate_n_long_plots_(data_series, generated_imgs, n=2, data_types=["bar"], show=False,
+                     clear_list=False):
+    os.makedirs(generated_imgs, exist_ok=True)
+    data_list = np.array([])
+    for i in tqdm(range(n)):
+        try:
+            x_data_dynamic, y_data_dynamic, titels = generate_dynamic_data_point(data_series)
+            if len(x_data_dynamic) < 5 or len(y_data_dynamic) < 5 or len(y_data_dynamic) > 20:
+                continue
+            if not isinstance(x_data_dynamic[0], str):
+                x_data_dynamic = [int(val) for val in x_data_dynamic]
+            x_data_dynamic_arr = np.array([str(x) for x in x_data_dynamic])
+            if "bar" in data_types:
+                data_dict, final_name = random_generate_bar_chart(x_data_dynamic_arr, np.array(y_data_dynamic),
+                                                                  name=os.path.join(generated_imgs, "bar"), **titels,
+                                                                  show=show, horizontal_prob=1)
+                data_dict, data_list = postprocess_data_gen(data_dict, final_name, data_list)
+                if show:
+                    img_name = os.path.join(generated_imgs, f"{final_name}.jpg")
+                    boxes = get_bboxes(data_dict, gen=True)
+                    plot_image_with_boxes(img_name, boxes, jupyter=False)
+        except Exception as err:
+            print(err)
+            print(x_data_dynamic)
+            print(y_data_dynamic)
+    return data_list
+
+
 def generate_random_bg_plot(x_title=None, y_title=None, graph_title=None, name="", show=False, folder=""):
     if folder != "":
         os.makedirs(folder, exist_ok=True)
@@ -493,8 +533,8 @@ if __name__ == "__main__":
     generated_imgs_bg = r"D:\MGA\bg_gen_charts"
 
     data_types = ["line", "scat", "dot", "bar"]
-    data_list = generate_n_plots(data_series, generated_imgs, n=8000, data_types=data_types,
-                                 show=True, clear_list=True)
+    data_list = generate_n_plots(data_series, generated_imgs, n=5000, data_types=data_types,
+                                 show=False, clear_list=True)
     df = pd.DataFrame.from_records(data_list)
     df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
 

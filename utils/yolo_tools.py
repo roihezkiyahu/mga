@@ -1,7 +1,5 @@
 import os
-
 import torch
-
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 from utils.util_funcs import sort_torch_by_col, remove_characters
 from PIL import Image
@@ -61,7 +59,7 @@ def straighten_image(image, angle):
     center = (w // 2, h // 2)
 
     # Compute the new dimensions of the image after rotation
-    alpha = np.deg2rad(angle)  # angle in radians
+    alpha = np.deg2rad(angle)
     new_width = int(abs(h * np.sin(alpha)) + abs(w * np.cos(alpha)))
     new_height = int(abs(h * np.cos(alpha)) + abs(w * np.sin(alpha)))
 
@@ -84,7 +82,6 @@ def extract_middle_contour(image, thresh):
     if not contours:
         return image
 
-    # Assuming the largest contour corresponds to the central part of the image
     largest_contour = max(contours, key=cv2.contourArea)
     x, y, w, h = cv2.boundingRect(largest_contour)
     img_h = image.shape[0]
@@ -113,8 +110,6 @@ def rotate_and_crop(image, x_label):
         image = straighten_image(image, angle-90)
         thresh = preprocess_image(image)
         image = extract_middle_contour(image, thresh)
-    # plt.imshow(image)
-    # plt.show()
     return image, angle_45, angle_135
 
 
@@ -239,28 +234,14 @@ def extract_with_trocr(roi, processor, model):
     return lower_res
 
 
-# def extract_with_paddleocr(rois, paddleocr):
-#     conc_img = preprocess_paddle_ocr(rois)
-#     plt.imshow(conc_img)
-#     plt.show()
-#     paddleocr_res = paddleocr.ocr(conc_img)
-#     return [res[1][0] for res in paddleocr_res[0]]
-
 def extract_with_paddleocr(rois, paddleocr):
     paddleocr_res = [paddleocr.ocr(roi, det=False) for roi in rois]
     return [res[0][0][0] if res[0][0][0] != "" else "None_ocr_val" for res in paddleocr_res]
 
 
-def initialize_ocr_resources(mode, gpu=False):
+def initialize_ocr_resources(mode, gpu=False, model_paths={}):
     """
     Initialize and return required resources based on the OCR mode.
-
-    Parameters:
-    - mode: OCR algorithm to use. Options: easyocr, trocr.
-    - gpu: Use GPU for computations (applicable for EasyOCR).
-
-    Returns:
-    - Tuple containing the initialized resources. (reader for EasyOCR, processor and model for TrOCR)
     """
     reader, processor, model, paddleocr = None, None, None, None
 
@@ -273,7 +254,13 @@ def initialize_ocr_resources(mode, gpu=False):
         if gpu:
             model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     if mode == "paddleocr":
-        paddleocr = PaddleOCR(use_angle_cls=True, lang='en')
+        if model_paths:
+            paddleocr = PaddleOCR(use_angle_cls=True, lang='en',
+                      det_model_dir=model_paths["det_model_dir"],
+                      rec_model_dir=model_paths["rec_model_dir"],
+                      cls_model_dir=model_paths["cls_model_dir"])
+        else:
+            paddleocr = PaddleOCR(use_angle_cls=True, lang='en')
     return reader, processor, model, paddleocr
 
 
@@ -290,13 +277,13 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
     Returns:
     - List of strings extracted from each bounding box.
     """
+    if not len(boxes):
+        return [], False, False
     texts, rois = [], []
     img_pil = Image.fromarray(img)
 
-    # Initialize required resources based on mode
     if all(x is None for x in (reader, processor, model)) and mode != "tesseract":
         reader, processor, model, paddleocr = initialize_ocr_resources(mode, gpu=gpu)
-
     for box in boxes:
         x1, y1, x2, y2 = compute_roi_coordinates(*box)
         y1 += int((y2-y1)*0.1)
@@ -320,31 +307,14 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
 
 def tick_label2axis_label(box_torch):
     tick_labels = box_torch[box_torch[:, 4] == 7]
-    plot_xywh = box_torch[box_torch[:, 4] == 0][0]
-    min_x, max_y = plot_xywh[0] - plot_xywh[2] / 2, plot_xywh[1] + plot_xywh[3] / 2
+    if torch.sum(box_torch[:, 4] == 0) > 0:
+        plot_xywh = box_torch[box_torch[:, 4] == 0][0]
+        min_x, max_y = plot_xywh[0] - plot_xywh[2] / 2, plot_xywh[1] + plot_xywh[3] / 2
+    else:
+        min_x, max_y = np.inf, 0
     x_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 1] > max_y], 0)
     y_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 0] < min_x], 1)
     return x_tick_labels, y_tick_labels
-
-
-def tick_label2value(box_torch, img):
-    # TODO take tick label bbox and extract the relevant text, turn it to numerical / categorical
-    # both x,y tick labels are categorical we have an issue one should be numerical, generally the y axis is numerical
-    # unless we are in horizontal bar mode
-    pass
-
-
-def match_tick2label(box_torch):
-    x_tick_labels, y_tick_labels = tick_label2axis_label(box_torch)
-    x_ticks_location = sort_torch_by_col(box_torch[box_torch[:, 4] == 1], 0)
-    y_ticks_location = sort_torch_by_col(box_torch[box_torch[:, 4] == 2], 1)
-    # now ticks and labels are in the same order so x_tick 1 matches x_label 1
-    # TODO tick_label2value
-
-
-def validate_length():
-    # TODO validate the length of x_ticks and intrest points (line_point,bar, dot)
-    pass
 
 
 def point_to_numeric(val, chars_to_remove):
@@ -354,7 +324,7 @@ def point_to_numeric(val, chars_to_remove):
         return np.inf
 
 
-def ticks_to_numeric(finsl_res, tick_to_turn=["y_ticks"], chars_to_remove=["%", "$", ","]):
+def ticks_to_numeric(finsl_res, tick_to_turn=["y_ticks"], chars_to_remove=["%", "$", ",", "C"]):
     x_y, labels, values, _ = finsl_res
     values = np.array(values, dtype=object)
     if "y_ticks" in tick_to_turn:

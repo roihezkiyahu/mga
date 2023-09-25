@@ -6,6 +6,7 @@ import os
 import pandas as pd
 import json
 import cv2
+import re
 from PIL import Image
 
 from data.global_data import class_box_to_idx, outlier_images
@@ -13,7 +14,7 @@ from utils.yolo_tools import (ticks_to_numeric, find_closest_ticks, get_ip_data,
                               get_categorical_output, fill_non_complete_prediction, get_numerical_output)
 
 from utils.util_funcs import (is_numeric, find_duplicate_indices, lowercase_except_first_letter, sort_torch_by_col,
-                              graph_class2type, save_bentech_res)
+                              graph_class2type, save_bentech_res, replace_infinite)
 from models.eval_prediction import benetech_score
 from models.mga_classifier import GraphClassifier, resize_and_pad
 from models.mga_detector import GraphDetecor
@@ -22,8 +23,8 @@ from data.global_data import indx_2_chart_label
 
 class MGAPredictor:
     def __init__(self, model, acc_device="cpu", ocr_mode="trocr", classifier_method="comb",
-                 classifier_path=r"..\weights\classifier\resnet_34_999.pth"):
-        self.yolo_model = GraphDetecor(model, acc_device, ocr_mode)
+                 classifier_path=r"..\weights\classifier\resnet_34_999.pth", ocr_model_paths={}):
+        self.yolo_model = GraphDetecor(model, acc_device, ocr_mode, ocr_model_paths=ocr_model_paths)
         self.classifier_method = classifier_method
         if classifier_method in ["classifier", "comb"]:
             model = GraphClassifier(num_classes=5, resnet_model=34)
@@ -67,11 +68,30 @@ class MGAPredictor:
         return x_output, y_output, filled
 
     @staticmethod
+    def validate_xy_values(x_values, y_values, cat=True):
+        if not len(y_values) + len(x_values):
+            if cat:
+                return False, ["abc", "def"], [0, 1]
+            else:
+                return False, [0, 1], [0, 1]
+        if not len(y_values):
+            return False, x_values, [0]*len(x_values)
+        if not len(x_values):
+            if cat:
+                return False, ["abc"]*len(y_values), y_values
+            else:
+                return False, [0] * len(y_values), y_values
+        return True, [], []
+
+    @staticmethod
     def postprocess_cat(finsl_res, graph_type, horizontal=False):
         x_y, labels, values = ticks_to_numeric(finsl_res, ["y_ticks"] if not horizontal else ["x_ticks"])
         closest_ticks, x_ticks_xy, y_ticks_xy = find_closest_ticks(x_y, labels, graph_type, 1 if not horizontal else 2,
                                                  1 if graph_type == 'dot_point' or horizontal else 2)
         interest_points, x_values, y_values, y_coords, x_coords = get_ip_data(x_y, labels, values, graph_type, True)
+        valid_xy, x_output, y_output = MGAPredictor.validate_xy_values(x_values, y_values)
+        if not valid_xy:
+            return x_output, y_output
         y_output, x_output = get_categorical_output(interest_points, closest_ticks, x_values, y_values, y_coords,
                                                     None if not horizontal else x_coords)
         # Drop duplicates if exsits
@@ -95,6 +115,9 @@ class MGAPredictor:
         x_y, labels, values = ticks_to_numeric(finsl_res, ["x_ticks", "y_ticks"])
         closest_ticks, x_ticks_xy, y_ticks_xy = find_closest_ticks(x_y, labels, "scatter_point", 2, 2)
         interest_points, x_values, y_values, y_coords, x_coords = get_ip_data(x_y, labels, values, "scatter_point", True)
+        valid_xy, x_output, y_output = MGAPredictor.validate_xy_values(x_values, y_values, False)
+        if not valid_xy:
+            return x_output, y_output
         y_output, x_output = get_numerical_output(interest_points, closest_ticks, x_values, y_values, x_coords,
                                                   y_coords)
         return x_output, y_output
@@ -107,8 +130,9 @@ class MGAPredictor:
     @staticmethod
     def postprocess_dot(finsl_res):
         x_output, y_output = MGAPredictor.postprocess_cat(finsl_res, graph_type="dot_point")
-        if is_numeric(x_output):
-            return np.array([float(val) for val in x_output]), y_output
+        if is_numeric(x_output, dot=True):
+            x_output = [re.sub(r'[a-zA-Z]', '', val) for val in x_output]
+            return np.array([float(val) if val != "" else 0 for val in x_output]), y_output
         return x_output, y_output
 
     @staticmethod
@@ -126,10 +150,14 @@ class MGAPredictor:
     def get_graph_type_class(self, finsl_res, img=None):
         if self.classifier_method == "comb":
             graph_type, graph_class = self.yolo_model.get_graph_type(finsl_res, img)
-            if graph_type != "bar": # yolo doew not detect well horizontal vs vertical graphs
+            if graph_type not in ["bar", "plot_bb"]: # yolo doew not detect well horizontal vs vertical graphs
                 return graph_type, graph_class
         if self.classifier_method == "yolo":
-            return self.yolo_model.get_graph_type(finsl_res, img)
+            graph_type, graph_class = self.yolo_model.get_graph_type(finsl_res, img)
+            if graph_type == "plot_bb":
+                graph_type = "line_point"
+                graph_class = "line"
+            return graph_type, graph_class
         if self.classifier_method in ["classifier", "comb"]:
             img_pil = Image.fromarray(img)
             grayscale_transform = transforms.Grayscale(num_output_channels=1)
@@ -159,6 +187,10 @@ class MGAPredictor:
         # order = MGAPredictor.get_output_order(x_data)
         # x_data = np.array(x_data)[order]
         # y_data = np.array(y_data)[order]
+        if isinstance(x_data[0], float) or isinstance(x_data[0], int):
+            x_data = list(np.array(x_data)[~np.isnan(x_data)])
+        if isinstance(y_data[0], float) or isinstance(y_data[0], int):
+            y_data = list(np.array(y_data)[~np.isnan(y_data)])
         gt_output = [{"id": f"{img_name}_x", "data_series": x_data, "chart_type": chart_type},
                      {"id": f"{img_name}_y", "data_series": y_data, "chart_type": chart_type}]
         df_gt = MGAPredictor.final_output_to_df(gt_output)
@@ -169,12 +201,18 @@ class MGAPredictor:
         print(graph_type, graph_class)
         if graph_type == "line_point":
             x_output, y_output = self.postprocess_line(finsl_res)
+            y_output = replace_infinite(y_output)
         if graph_type == "dot_point":
             x_output, y_output = self.postprocess_dot(finsl_res)
+            y_output = replace_infinite(y_output)
         if graph_type == "bar":
             x_output, y_output = self.postprocess_bar(finsl_res, graph_class)
+            y_output = replace_infinite(y_output)
         if graph_type == "scatter_point":
             x_output, y_output = self.postprocess_scat(finsl_res)
+            y_output = replace_infinite(y_output)
+            x_output = replace_infinite(x_output)
+
         final_output = [{"id": f"{img_name}_x", "data_series": x_output, "chart_type": graph_class},
                         {"id": f"{img_name}_y", "data_series": y_output, "chart_type": graph_class}]
         return final_output
@@ -204,16 +242,16 @@ if __name__ == "__main__":
     imgs_dir = r"D:\train\images"
     yolo_model = MGAPredictor(yolo_path, acc_device, ocr_mode)
     imgs_paths_0 = [
-        # r"D:\train\images\21a625d5a3c0.jpg",
-        # r"D:\train\images\03abc1b29c7b.jpg",
-        # r"D:\train\images\19d17b7e660e.jpg",
+        # r".jpg",
+        # r"D:\train\images\007144325428.jpg",
+        # r"D:\train\images\02598e3f5382.jpg",
+
+        # r"D:\train\images\036e5b81e14e.jpg",
+        # r"D:\train\images\0420998fb26f.jpg",
+        # r"D:\train\images\0492e7529fe9.jpg",
         #
-        # r"D:\train\images\8fcc9d293aac.jpg",
-        # r"D:\train\images\1d4ab0ee2d85.jpg",
-        # r"D:\train\images\315a7d63a89a.jpg",
-        #
-        # r"D:\train\images\268b5b9dad33.jpg",
-        # r"D:\train\images\3093824f7c4f.jpg",
+        # r"D:\train\images\05aa3d27cdc4.jpg",
+        # r"D:\train\images\05fc2750e9d3.jpg",
         # r"D:\MGA\sorted_images\line\00a68f5c2a93.jpg",
         # r"D:\MGA\sorted_images\line\02a23ca8f04b.jpg",
         # r"D:\MGA\sorted_images\line\029eb96f26d9.jpg",
@@ -227,6 +265,7 @@ if __name__ == "__main__":
         # r"D:\MGA\sorted_images\scatter\00ade5dc4f7a.jpg",
         # r"D:\MGA\sorted_images\scatter\1a3d883bf388.jpg"
                   ]
+
     res_files = [file.split("_")[0] for file in os.listdir(res_foldr)]
     imgs_paths = imgs_paths_0 + [os.path.join(imgs_dir, img) for img in os.listdir(imgs_dir)
                                  if img.split(".")[0] not in outlier_images]
