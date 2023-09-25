@@ -314,8 +314,8 @@ def tick_label2axis_label(box_torch):
         min_x, max_y = plot_xywh[0] - plot_xywh[2] / 2, plot_xywh[1] + plot_xywh[3] / 2
     else:
         min_x, max_y = np.inf, 0
-    x_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 1] > max_y], 0)
     y_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 0] < min_x], 1)
+    x_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 1] > max_y+torch.median(y_tick_labels[:,3]).item()/2], 0)
     return x_tick_labels, y_tick_labels
 
 

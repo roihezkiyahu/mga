@@ -238,20 +238,21 @@ if __name__ == "__main__":
     acc_device = "cuda" if torch.cuda.is_available() else "cpu"
     ocr_mode = "paddleocr"
     annot_folder = r"D:\train\annotations"
-    res_foldr = r"G:\My Drive\MGA\img_res_new" #r"D:\MGA\img_res"
-    imgs_dir = r"D:\train\images"
+    res_foldr = r"G:\My Drive\MGA\img_res_angle_correction" #r"D:\MGA\img_res"
+    imgs_dir = r"D:\MGA\sorted_images\zero_score"
     yolo_model = MGAPredictor(yolo_path, acc_device, ocr_mode)
     imgs_paths_0 = [
-        # r".jpg",
-        r"D:\train\images\0227c9e39e00.jpg",
-        # r"D:\train\images\02598e3f5382.jpg",
 
-        # r"D:\train\images\036e5b81e14e.jpg",
-        # r"D:\train\images\0420998fb26f.jpg",
-        # r"D:\train\images\0492e7529fe9.jpg",
+        # r"D:\train\images\05ec4e7ad361.jpg",
+        # r"D:\train\images\0073ac9cd239.jpg",
         #
-        # r"D:\train\images\05aa3d27cdc4.jpg",
-        # r"D:\train\images\05fc2750e9d3.jpg",
+        # r"D:\train\images\007a18eb4e09.jpg",
+        # r"D:\train\images\00d76c715deb.jpg",
+        # r"D:\train\images\00f5404753cf.jpg",
+        #
+        # r"D:\train\images\0116c35ada8c.jpg",
+        # r"D:\train\images\01850b694f00.jpg",
+
         # r"D:\MGA\sorted_images\line\00a68f5c2a93.jpg",
         # r"D:\MGA\sorted_images\line\02a23ca8f04b.jpg",
         # r"D:\MGA\sorted_images\line\029eb96f26d9.jpg",
@@ -275,6 +276,7 @@ if __name__ == "__main__":
             if img_name in res_files and not np.any([img_name in img_p for img_p in imgs_paths_0]):
                 print(img_name, " already processes")
                 continue
+            print(img_name)
             finsl_res_out, benetech_score_eval, df_out, df_gt = yolo_model.get_bentech_score(img_path, annot_folder)
             save_bentech_res(img_path, res_foldr, benetech_score_eval, df_out, df_gt)
         except Exception as e:
