@@ -17,7 +17,7 @@ from utils.util_funcs import lowercase_except_first_letter
 def preprocess_image(image):
     """Convert the image to grayscale and threshold."""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    kernel_size = (image.shape[1] // 5, image.shape[0] // 5)
+    kernel_size = (int(image.shape[0] / 7.5), int(image.shape[0] / 7.5))
     kernel_size = (kernel_size[0] + 1 if kernel_size[0] % 2 == 0 else kernel_size[0],
                    kernel_size[1] + 1 if kernel_size[1] % 2 == 0 else kernel_size[1])
     kernel = np.ones(kernel_size, np.uint8)
@@ -281,7 +281,7 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
         return [], False, False
     texts, rois = [], []
     img_pil = Image.fromarray(img)
-
+    rotated_45_list, rotated_135_list = [], []
     if all(x is None for x in (reader, processor, model)) and mode != "tesseract":
         reader, processor, model, paddleocr = initialize_ocr_resources(mode, gpu=gpu)
     for box in boxes:
@@ -289,6 +289,8 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
         y1 += int((y2-y1)*0.1)
         roi = img_pil.crop((x1, y1, x2, y2))
         roi, rotated_45, rotated_135 = rotate_and_crop(roi, x_label)
+        rotated_45_list.append(rotated_45)
+        rotated_135_list.append(rotated_135)
         if mode == "easyocr":
             texts.append(extract_with_easyocr(roi, reader))
         elif mode in ["trocr", "paddleocr"]:
@@ -302,7 +304,7 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
         # if "None_ocr_val" in texts:
         #     mask = [text == "None" for text in texts]
         #     texts[mask] = extract_with_trocr(rois[mask], processor, model)
-    return texts, rotated_45, rotated_135
+    return texts, np.mean(rotated_45_list) > 0.5, np.mean(rotated_135_list) > 0.5
 
 
 def tick_label2axis_label(box_torch):

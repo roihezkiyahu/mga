@@ -243,7 +243,7 @@ if __name__ == "__main__":
     yolo_model = MGAPredictor(yolo_path, acc_device, ocr_mode)
     imgs_paths_0 = [
         # r".jpg",
-        # r"D:\train\images\007144325428.jpg",
+        r"D:\train\images\0227c9e39e00.jpg",
         # r"D:\train\images\02598e3f5382.jpg",
 
         # r"D:\train\images\036e5b81e14e.jpg",
