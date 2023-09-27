@@ -234,16 +234,16 @@ class MGAPredictor:
 
 
 if __name__ == "__main__":
-    yolo_path = r"C:\Users\Nir\PycharmProjects\mga\weights\detector\img640_batch_32_lr1e4.pt"
+    yolo_path = r"C:\Users\Nir\PycharmProjects\mga\weights\detector\img640_batch_32_lr1e4_iou5_bg6000_aug40k_test.pt"
     acc_device = "cuda" if torch.cuda.is_available() else "cpu"
     ocr_mode = "paddleocr"
     annot_folder = r"D:\train\annotations"
-    res_foldr = r"G:\My Drive\MGA\img_res_angle_correction" #r"D:\MGA\img_res"
-    imgs_dir = r"D:\MGA\sorted_images\zero_score"
+    res_foldr = r"G:\My Drive\MGA\img_res_aug_detector_extracted" #r"D:\MGA\img_res"
+    imgs_dir = "D:\MGA\sorted_images\extracted"
     yolo_model = MGAPredictor(yolo_path, acc_device, ocr_mode)
     imgs_paths_0 = [
 
-        # r"D:\train\images\05ec4e7ad361.jpg",
+        # r"D:\train\images\00d76c715deb.jpg",
         # r"D:\train\images\0073ac9cd239.jpg",
         #
         # r"D:\train\images\007a18eb4e09.jpg",

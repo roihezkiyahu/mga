@@ -50,6 +50,7 @@ def benetech_score(ground_truth: pd.DataFrame, predictions: pd.DataFrame) -> flo
     for (gt_series, gt_type), (pred_series, pred_type) in pairs:
         if gt_type != pred_type:  # Check chart_type condition
             scores.append(0.0)
+            print("wrong graph type")
         else:  # Score with RMSE or Levenshtein as appropriate
             scores.append(score_series(gt_series, pred_series))
     final_score = np.nanmean(scores)

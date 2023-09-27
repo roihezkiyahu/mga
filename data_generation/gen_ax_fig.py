@@ -308,3 +308,10 @@ def determine_overall_data_type(x_values, y_values):
         return 'categorical'
     else:
         return 'numerical'
+
+
+def random_background_color(exclude=None):
+    colors = ['blue', 'green', 'red', 'yellow', 'purple', 'orange', 'pink', 'brown', 'grey', 'black']
+    if exclude:
+        colors = [color for color in colors if color != exclude]
+    return random.choice(colors)

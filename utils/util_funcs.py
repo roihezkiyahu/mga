@@ -422,9 +422,6 @@ def find_duplicate_indices(lst):
 
 
 def lowercase_except_first_letter(arr):
-    if arr.ndim != 1:
-        return "Input should be a 1-dimensional numpy array"
-
     def modify_string(s):
         if len(s) > 1:
             return s[0] + s[1:].lower()

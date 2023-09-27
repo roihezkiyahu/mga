@@ -8,7 +8,7 @@ import copy
 import numpy as np
 
 class GraphDetecor:
-    def __init__(self, model, acc_device="cpu", ocr_mode="paddleocr", iou=0.5, conf=0.15, show_res=True,
+    def __init__(self, model, acc_device="cpu", ocr_mode="paddleocr", iou=0.5, conf=0.15, show_res=False,
                  ocr_model_paths={}):
         # TODO add cuda support
         if isinstance(model, str):
