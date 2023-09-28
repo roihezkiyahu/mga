@@ -240,6 +240,7 @@ if __name__ == "__main__":
     annot_folder = r"D:\train\annotations"
     res_foldr = r"G:\My Drive\MGA\img_res_aug_detector_extracted" #r"D:\MGA\img_res"
     imgs_dir = "D:\MGA\sorted_images\extracted"
+    imgs_dir = r"G:\My Drive\MGA\zero_score_exctracted"
     yolo_model = MGAPredictor(yolo_path, acc_device, ocr_mode)
     imgs_paths_0 = [
 

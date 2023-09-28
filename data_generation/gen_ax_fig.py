@@ -17,15 +17,15 @@ def filter_texts(texts, plot_bbox, pixel_dims):
     """
     Filters out texts whose polygons are not entirely within the plot bounding box.
     """
-    def is_inside_bbox(polygon, bbox, pixel_dims, text):
+    def is_inside_bbox(polygon, bbox, pixel_dims, text, role):
         """Check if a polygon is inside a bounding box."""
-        if not is_numeric(text):
-            return True
-        return (((polygon['x0']+polygon['x1'])/2 <= bbox.x1*pixel_dims[0] and
-                 (polygon['x0']+polygon['x1'])/2 >= bbox.x0*pixel_dims[0]) or
-                (polygon['y0'] <= bbox.y1*pixel_dims[1] and
-                 polygon['y2'] >= bbox.y0*pixel_dims[1]))
-    return [text for text in texts if is_inside_bbox(text['polygon'], plot_bbox, pixel_dims, text['text'])]
+        if "title" in role:
+            return False
+        return (((polygon['x0']+polygon['x1'])/2-2 <= bbox.x1*pixel_dims[0] and
+                 (polygon['x0']+polygon['x1'])/2+2 >= bbox.x0*pixel_dims[0]) or
+                (bbox.y1 * pixel_dims[1] >= polygon['y0'] and
+                 polygon['y2'] >= bbox.y0 * pixel_dims[1]))
+    return [text for text in texts if is_inside_bbox(text['polygon'], plot_bbox, pixel_dims, text['text'], text['role'])]
 
 
 def bbox_to_polygon(bbox, pixel_dims, fig_inch_size, shift=1):
@@ -182,13 +182,15 @@ def set_x_ticks(ax, x, rotate):
     ax.set_xticklabels(x, rotation=rotation_angle)
 
 
-def set_ax_loc_rotate(ax, rotate):
+def set_ax_loc_rotate(ax, rotate, long=False):
     rand_noise_x = np.random.uniform(0.1, 0.125)
     rand_noise_y = np.random.uniform(0.075, 0.1)
     ax.set_position([rand_noise_x, rand_noise_y, 1 - rand_noise_x*1.25, 1 - rand_noise_y * 2])
     if rotate:
         ax.set_position([0.075 + rand_noise_x, 0.075 + rand_noise_y, 0.85 - rand_noise_x * 2, 0.85 - rand_noise_y * 2])
-
+    if long:
+        rand_noise_x = np.random.uniform(0.1, 0.2)
+        ax.set_position([0.3 + rand_noise_x, rand_noise_y, 0.65 - rand_noise_x, 1 - rand_noise_y * 2])
 
 def default_serialize(obj):
     """Default JSON serializer."""
@@ -210,18 +212,16 @@ def save_file(name, fig, data_dict):
     base_name = name
     counter = 0
 
-    # Extract the potential number from the end of the name
     match = re.search(r'(\d+)$', base_name)
     if match:
         counter = int(match.group(1))
         base_name = name[:-len(match.group(1))]
     final_name = f"{base_name}{counter}"
-    # Construct new name by incrementing counter until a unique filename is found
+
     while os.path.exists(f"{final_name}.jpg") or os.path.exists(f"{final_name}data.json"):
         counter += 1
         final_name = f"{base_name}{counter}"
 
-    # Save the figure and JSON with custom serialization for NumPy types
     fig.savefig(f"{final_name}.jpg")
     with open(f'{final_name}.json', 'w') as file:
         json.dump(data_dict, file, indent=4, default=default_serialize)
@@ -235,25 +235,28 @@ def is_overlapping(rect1, rect2):
                 rect1['y1'] < rect2['y0'])
 
 
-def check_text_overlap(data_dict):
+def check_text_overlap(data_dict, fig_h, outsideplot=True):
     texts = data_dict['text']
     overlaps = []
     for i in range(len(texts)):
         for j in range(i+1, len(texts)):
             if is_overlapping(texts[i]['polygon'], texts[j]['polygon']):
                 overlaps.append((texts[i]['id'], texts[j]['id']))
+        if outsideplot:
+            rect = texts[i]['polygon']
+            if texts[i]['role'].endswith("title"):
+                continue
+            if rect["x0"] < 0 or rect['y1'] > fig_h*100:
+                overlaps.append(1)
     return len(overlaps) > 0
 
 
 def extract_titles(data):
-    # Initial placeholders
     titles = {
         'x_title': None,
         'y_title': None,
         'graph_title': None
     }
-
-    # Extract roles and texts for 'axis_title' and 'chart_title'
     axis_titles = []
     chart_title = None
     if data == "#VALUE!":
@@ -277,12 +280,10 @@ def extract_titles(data):
                 titles['x_title'] = axis_titles[0][1]
     # If there are two 'axis_titles'
     elif len(axis_titles) == 2:
-        # Sort by x0 value
         axis_titles = sorted(axis_titles, key=lambda x: x[0])
         titles['y_title'] = axis_titles[0][1]
         titles['x_title'] = axis_titles[1][1]
 
-    # Add chart title if it exists
     if chart_title:
         titles['graph_title'] = chart_title[1]
         if len(titles['graph_title']) > 50:
@@ -315,3 +316,39 @@ def random_background_color(exclude=None):
     if exclude:
         colors = [color for color in colors if color != exclude]
     return random.choice(colors)
+
+
+def break_string(s, threshold):
+    if len(s) <= threshold:
+        return s
+
+    k = int(random.randint(2, np.ceil(len(s) / threshold)))
+    chunk_size = len(s) // k
+
+    chunks = []
+    start = 0
+    for _ in range(k - 1):
+        end = start + chunk_size
+        while end < len(s) and s[end] not in [" ", ",", ")"]:
+            end -= 1
+        chunks.append(s[start:end].strip())
+        start = end
+
+    chunks.append(s[start:].strip())
+
+    if len(chunks[-1]) <= 5:
+        chunks[-2] += " " + chunks[-1]
+        chunks = chunks[:-1]
+
+    return "\n".join(chunks)
+
+
+def insert_newline_at_random_space(s):
+    space_indices = [i for i, char in enumerate(s) if char == " "]
+
+    if not space_indices:
+        return s
+
+    chosen_index = random.choice(space_indices)
+
+    return s[:chosen_index] + "\n" + s[chosen_index + 1:]

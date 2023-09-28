@@ -1,3 +1,5 @@
+import random
+
 import matplotlib.ticker as ticker
 # from sklearn.linear_model import LinearRegression
 import numpy as np
@@ -17,7 +19,6 @@ plt.ticklabel_format(style='plain')
 def generate_line_chart(x, y, line_color='blue', grid_style="both", x_title=None, y_title=None, graph_title=None,
                         theme="default", line_style='-', marker_style=None, figsize=(6, 4), name=None,
                         rotate=False, show=True, cont=False):
-    # TODO add option for random data points addition (just for plot not sieries) for numeric  data
     set_style(theme)
     fig, ax = plt.subplots(figsize=figsize)
     set_grid(grid_style, ax)
@@ -94,7 +95,7 @@ def random_generate_line_chart(x, y, x_title=None, y_title=None, graph_title=Non
                                                 y_title=y_title, graph_title=graph_title,
                                                 theme=theme, line_style=line_style, marker_style=marker_style,
                                                 figsize=figsize, name=name, show=show, cont=cont)
-    if not check_text_overlap(data_dict):
+    if not check_text_overlap(data_dict, figsize_h):
         return data_dict, final_name
     os.remove(f"{final_name}.jpg")
     os.remove(f"{final_name}.json")
@@ -107,7 +108,7 @@ def random_generate_line_chart(x, y, x_title=None, y_title=None, graph_title=Non
                                                     y_title=y_title, graph_title=graph_title,
                                                     theme=theme, line_style=line_style, marker_style=marker_style,
                                                     figsize=figsize, name=name, show=show, cont=cont)
-        if not check_text_overlap(data_dict):
+        if not check_text_overlap(data_dict, figsize_h):
             return data_dict, final_name
         os.remove(f"{final_name}.jpg")
         os.remove(f"{final_name}.json")
@@ -175,19 +176,24 @@ def random_generate_scatter_chart(x, y, x_title=None, y_title=None, graph_title=
 
 def generate_bar_chart(categories, values, color='blue', grid_style="both", theme="default", orientation="vertical",
                        x_title=None, y_title=None, graph_title=None, figsize=(6, 4), name=None, rotate=False,
-                       show=True):
+                       show=True, long=False):
     set_style(theme)
     fig, ax = plt.subplots()
     set_grid(grid_style, ax)
     set_title(ax, x_title, y_title, graph_title)
-    set_ax_loc_rotate(ax, rotate)
+    set_ax_loc_rotate(ax, rotate, long)
     if rotate:
-        ax.set_xticklabels(categories, rotation=45, ha='right')  # Rotate for better visibility if needed
+        ax.set_xticklabels(categories if orientation == "vertical" else [int(val) for val in values],
+                           rotation=45, ha='right')  # Rotate for better visibility if needed
         labels = ax.get_xticklabels()
-        offset = mtransforms.ScaledTranslation((np.random.uniform(1, 2)*figsize[0]/ax.figure.get_dpi()), 0, ax.figure.dpi_scale_trans)
+        offset = mtransforms.ScaledTranslation((np.random.uniform(1, 2)*figsize[0]/ax.figure.get_dpi()), 0,
+                                               ax.figure.dpi_scale_trans)
 
         for label in labels:
             label.set_transform(label.get_transform() + offset)
+    if long:
+        ax.tick_params(axis='x', labelsize=random.randint(8, 10))
+        ax.tick_params(axis='y', labelsize=random.randint(6, 10))
 
     if orientation == "vertical":
         ax.bar(categories, values, label='Sample Vertical Bar', color='none' if random.random() < 0.2 else color,
@@ -210,12 +216,12 @@ def generate_bar_chart(categories, values, color='blue', grid_style="both", them
     final_name = save_file(name, fig, data_dict)
     if show:
         plt.show()
-    plt.close(fig)  # Close the plot to avoid displaying
+    plt.close(fig)  # close the plot to avoid displaying
     return data_dict, final_name
 
 
 def random_generate_bar_chart(categories, values, x_title=None, y_title=None, graph_title=None, name=None, show=True,
-                              horizontal_prob=0.25):
+                              horizontal_prob=0.25, long=False):
     color_palette = ['blue', 'red', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta', 'brown', 'pink', "black"]
     color = random.choice(color_palette)
     grid_style = np.random.choice(["both", "x", "y", "none"], p=[0.1, 0.1, 0.1, 0.7])
@@ -227,33 +233,37 @@ def random_generate_bar_chart(categories, values, x_title=None, y_title=None, gr
         name = os.path.join(os.path.dirname(name), f"{orientation}_{os.path.basename(name)}")
     else:
         name = f"{orientation}_{name}"
-    figsize_w = random.randint(4, 13)
-    figsize_h = random.randint(max(4, int(figsize_w / 3.7)), min(int(figsize_w * 1.5), 9))
+    figsize_w = random.randint(4, 13) if not long else random.randint(10, 15)
+    figsize_h = random.randint(max(4 if not long else 6, int(figsize_w / 3.7)),
+                               min(int(figsize_w * 1.5), 9 if not long else 11))
     figsize = (figsize_w, figsize_h)
     data_dict, final_name = generate_bar_chart(categories, values, color=color, grid_style=grid_style, theme=theme,
                                                orientation=orientation,
                                                x_title=x_title, y_title=y_title, graph_title=graph_title,
-                                               figsize=figsize, name=name, show=show)
-    if not check_text_overlap(data_dict):
+                                               figsize=figsize, name=name, show=show, long=long)
+    if not check_text_overlap(data_dict, figsize_h):
         return data_dict, final_name
     os.remove(f"{final_name}.jpg")
     os.remove(f"{final_name}.json")
-    figsize_w = random.randint(figsize_w + 1, 14)
-    figsize_h = random.randint(max(5, int(figsize_w / 3)), min(int(figsize_w * 1.5), 9))
+    figsize_w = random.randint(figsize_w + 1, 14 if not long else 16)
+    figsize_h = random.randint(max(6, int(figsize_w / 3)), min(int(figsize_w * 1.5), 10))
     figsize = (figsize_w, figsize_h)
-    if random.random() < 0.5 and figsize_w < 10:
+    if (random.random() < 0.5 and figsize_w < 10) or long:
         data_dict, final_name = generate_bar_chart(categories, values, color=color, grid_style=grid_style, theme=theme,
                                                    orientation=orientation,
                                                    x_title=x_title, y_title=y_title, graph_title=graph_title,
-                                                   figsize=figsize, name=name, show=show)
-        if not check_text_overlap(data_dict):
+                                                   figsize=figsize, name=name, show=show, long=long)
+        if not check_text_overlap(data_dict, figsize_h):
             return data_dict, final_name
         os.remove(f"{final_name}.jpg")
         os.remove(f"{final_name}.json")
-    return generate_bar_chart(categories, values, color=color, grid_style=grid_style, theme=theme,
-                              orientation=orientation,
-                              x_title=x_title, y_title=y_title, graph_title=graph_title, figsize=figsize, name=name,
-                              rotate=True, show=show)
+    if not long:
+        return generate_bar_chart(categories, values, color=color, grid_style=grid_style, theme=theme,
+                                  orientation=orientation,
+                                  x_title=x_title, y_title=y_title, graph_title=graph_title, figsize=figsize, name=name,
+                                  rotate=True, show=show, long=long)
+    else:
+        return {}, "img"
 
 
 def dotplot(xs, ys, ax, fig, ylim, step, show=True, **args):
@@ -267,19 +277,14 @@ def dotplot(xs, ys, ax, fig, ylim, step, show=True, **args):
         for z in range(ylim[0], y, step):
             scatter_x.append(x)
             scatter_y.append(z + step / 2)
-
-    # draw dot plot using scatter()
     factor = (ylim[1] - ylim[0]) / 10 / step / (fig_size[1] / 6)
     ax.scatter(scatter_x, scatter_y, s=fig.dpi * 10 / factor ** 2, zorder=3, **args)
 
-    # Show all unique x-values
     ax.set_xticks(xs)
 
-    # Change major ticks to show every 1 value
     ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
     ax.yaxis.set_major_locator(ticker.MultipleLocator(step))
 
-    # Margin so dots fit on screen
     ax.set_xmargin(np.random.uniform(0.04, 0.2))
     ax.set_ylim(ylim)
     if show:
@@ -305,12 +310,11 @@ def generate_dot_plot(x, y, color='blue', grid_style="both", theme="white", figs
     final_name = save_file(name, fig, data_dict)
     if show:
         plt.show()
-    plt.close(fig)  # Close the plot to avoid displaying
+    plt.close(fig)  # close the plot to avoid displaying
     return data_dict, final_name
 
 
 def random_generate_dot_plot(x, y, x_title=None, y_title=None, graph_title=None, name=None, show=True):
-    # Standard color palette
     color_palette = ['blue', 'red', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta', 'brown', 'pink', "black"]
     color = random.choice(color_palette)
     grid_style = random.choice(["y", "none"])
@@ -323,7 +327,7 @@ def random_generate_dot_plot(x, y, x_title=None, y_title=None, graph_title=None,
                                               x_title=x_title, y_title=y_title, graph_title=graph_title, name=name,
                                               show=show)
 
-    if not check_text_overlap(data_dict):
+    if not check_text_overlap(data_dict, figsize[1]):
         return data_dict, final_name
     os.remove(f"{final_name}.jpg")
     os.remove(f"{final_name}.json")
@@ -333,7 +337,7 @@ def random_generate_dot_plot(x, y, x_title=None, y_title=None, graph_title=None,
                                                   figsize=figsize, ylim=ylim, step=step,
                                                   x_title=x_title, y_title=y_title, graph_title=graph_title, name=name,
                                                   show=show)
-        if not check_text_overlap(data_dict):
+        if not check_text_overlap(data_dict, figsize[1]):
             return data_dict, final_name
         os.remove(f"{final_name}.jpg")
         os.remove(f"{final_name}.json")
@@ -421,14 +425,23 @@ def preprocess_data_series(data_series):
     return data_series
 
 
-def create_long_y_df(data_series):
+def create_long_y_df(data_series, include_titles=True):
     all_xes = set(chain.from_iterable(data_series["x"].to_list()))
     all_xes_str = {x for x in all_xes if not is_numeric(x)}
-    sorted_all_xes_str = sorted(all_xes_str, key=len)
+    sorted_all_xes_str = sorted(all_xes_str, key=len)[-300:]
 
     all_ys = set(chain.from_iterable(data_series["y"].to_list()))
     all_ys_str = {y for y in all_ys if not is_numeric(y)}
-    sorted_all_ys_str = sorted(all_ys_str, key=len)
+    sorted_all_ys_str = sorted(all_ys_str, key=len)[-100:]
+
+    sorted_all_titles = []
+    if include_titles:
+        titles_df = data_series["text"].apply(pd.Series)
+        all_titles = {title.replace("\n", "") for title in titles_df["graph_title"] if title}
+        sorted_all_titles = sorted(all_titles, key=len)[-5000:-1500]
+
+    long_strings = sorted_all_xes_str + sorted_all_ys_str + sorted_all_titles
+    return long_strings
 
 
 def postprocess_data_gen(data_dict, final_name, data_list, only_plot_area=False):
@@ -510,6 +523,7 @@ def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat
             print(y_data_dynamic)
     return data_list
 
+
 def generate_cont_lines(data_series, generated_imgs, n=2, data_types=["line"], show=False,
                      clear_list=False):
     os.makedirs(generated_imgs, exist_ok=True)
@@ -523,9 +537,11 @@ def generate_cont_lines(data_series, generated_imgs, n=2, data_types=["line"], s
             if "line" in data_types:
                 if not isinstance(x_data_dynamic[0], str):
                     x_data_dynamic = [str(int(x)) for x in x_data_dynamic]
+                elif random.random() < 1:
+                    x_data_dynamic = [insert_newline_at_random_space(x) for x in x_data_dynamic]
                 data_dict, final_name = random_generate_line_chart(x_data_dynamic, y_data_dynamic,
-                                                                   name=os.path.join(generated_imgs, "line"), **titels,
-                                                                   show=show, cont=True)
+                                                                   name=os.path.join(generated_imgs, "line_cont"),
+                                                                   **titels, show=show, cont=True)
                 data_dict, data_list = postprocess_data_gen(data_dict, final_name, data_list)
                 if show:
                     img_name = os.path.join(generated_imgs, f"{final_name}.jpg")
@@ -541,27 +557,32 @@ def generate_cont_lines(data_series, generated_imgs, n=2, data_types=["line"], s
     return data_list
 
 
-def generate_n_long_plots_(data_series, generated_imgs, n=2, data_types=["bar"], show=False,
-                     clear_list=False):
+def generate_n_long_plots(data_series, generated_imgs, n=2, data_types=["bar"], show=False):
     os.makedirs(generated_imgs, exist_ok=True)
     data_list = np.array([])
+    long_strings = list(create_long_y_df(data_series))
     for i in tqdm(range(n)):
         try:
             x_data_dynamic, y_data_dynamic, titels = generate_dynamic_data_point(data_series)
-            if len(x_data_dynamic) < 5 or len(y_data_dynamic) < 5 or len(y_data_dynamic) > 25:
+            if len(y_data_dynamic) < 4 or len(y_data_dynamic) > 25 or isinstance(y_data_dynamic[0], str):
+                continue
+            x_data_dynamic = random.sample(long_strings, len(y_data_dynamic))
+            if isinstance(x_data_dynamic[0], str) and isinstance(y_data_dynamic[0], str):
                 continue
             if not isinstance(x_data_dynamic[0], str):
                 x_data_dynamic = [int(val) for val in x_data_dynamic]
-            x_data_dynamic_arr = np.array([str(x) for x in x_data_dynamic])
+            x_data_dynamic_arr = np.array([break_string(str(x), random.randint(35, 75)) for x in x_data_dynamic])
+
             if "bar" in data_types:
                 data_dict, final_name = random_generate_bar_chart(x_data_dynamic_arr, np.array(y_data_dynamic),
-                                                                  name=os.path.join(generated_imgs, "bar"), **titels,
-                                                                  show=show, horizontal_prob=1)
+                                                                  name=os.path.join(generated_imgs, "bar_long"), **titels,
+                                                                  show=show, horizontal_prob=1, long=True)
                 data_dict, data_list = postprocess_data_gen(data_dict, final_name, data_list)
                 if show:
                     img_name = os.path.join(generated_imgs, f"{final_name}.jpg")
                     boxes = get_bboxes(data_dict, gen=True)
                     plot_image_with_boxes(img_name, boxes, jupyter=False)
+            data_list = []
         except Exception as err:
             print(err)
             print(x_data_dynamic)
@@ -600,21 +621,22 @@ if __name__ == "__main__":
     generated_imgs = r"D:\MGA\gen_charts_new_line_cont"
     generated_imgs_bg = r"D:\MGA\bg_gen_charts"
 
-    # data_types = ["line", "scat", "dot", "bar"]
-    # data_list = generate_n_plots(data_series, generated_imgs, n=2500, data_types=data_types,
-    #                              show=False, clear_list=True)
+
+    # data_types = ["bar"]
+    # data_list = generate_n_long_plots(data_series, generated_imgs, n=5000, data_types=data_types,
+    #                              show=False)
     # df = pd.DataFrame.from_records(data_list)
     # df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
 
     data_types = ["line"]
-    data_list = generate_cont_lines(data_series, generated_imgs, n=6000, data_types=data_types,
-                                 show=True, clear_list=True)
+    data_list = generate_cont_lines(data_series, generated_imgs, n=8000, data_types=data_types,
+                                 show=False, clear_list=True)
     df = pd.DataFrame.from_records(data_list)
     df.to_csv(os.path.join(generated_imgs, "generated_data.csv"))
 
 
 
-    # data_types = ["scat"]
+    # data_types = ["line"]
     # data_list = generate_n_plots(data_series, generated_imgs, n=5000, data_types=data_types,
     #                              show=False, clear_list=True)
     # df = pd.DataFrame.from_records(data_list)

@@ -308,18 +308,19 @@ def copy_files(file_list, source_img, source_lbl, dest_img, dest_lbl, valid_name
             shutil.copy(src_lbl_path, dest_lbl_path)
 
 
-def sort_yolo_folders(tr_img, tr_labels, valid_names=[], overwrite=False, base_dir='dataset'):
+def sort_yolo_folders(tr_img, tr_labels, valid_names=[], overwrite=False, base_dir='dataset',
+                      train_percent=0.89, valid_percent=0.1):
     random.seed(42)
     subfolders = ['train', 'valid', 'test']
     for subfolder in subfolders:
         os.makedirs(os.path.join(base_dir, subfolder, 'images'), exist_ok=True)
         os.makedirs(os.path.join(base_dir, subfolder, 'labels'), exist_ok=True)
-    all_images = [f for f in os.listdir(tr_img) if f.endswith('.jpg')]
+    all_images = [f for f in os.listdir(tr_img) if f.endswith('.jpg') and f.split(".")[0] not in outlier_images]
 
     # Shuffle and split the data
     random.shuffle(all_images)
-    train_split = int(0.80 * len(all_images))
-    valid_split = int(0.15 * len(all_images)) + train_split
+    train_split = int(train_percent * len(all_images))
+    valid_split = int(valid_percent * len(all_images)) + train_split
 
     train_images = all_images[:train_split]
     valid_images = all_images[train_split:valid_split]
