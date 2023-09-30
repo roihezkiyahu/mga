@@ -2,6 +2,7 @@ import numpy as np
 import scipy.stats as stats
 import scipy.special
 
+
 def generate_continuous_function(x_min, x_max, rate=1.0, apply_noise=False):
     x = np.linspace(x_min, x_max, 1000)
     amp_sin, freq_sin, phase_sin = np.random.uniform(0, 5) * rate, np.random.uniform(0, 2) * rate, np.random.uniform(0, 2 * np.pi)
@@ -11,25 +12,30 @@ def generate_continuous_function(x_min, x_max, rate=1.0, apply_noise=False):
     trend_component = np.random.uniform(-1, 1) * rate * x + np.random.uniform(-5, 5)
     return x, sine_component + cosine_component + noise_component + trend_component
 
+
 def gaussian_function(x_min, x_max, rate=1.0):
     x = np.linspace(x_min, x_max, 1000)
     mean, std = np.random.uniform(x_min, x_max), np.random.uniform(0.5, 5) * rate
     return x, stats.norm.pdf(x, mean, std)
+
 
 def beta_function(x_min, x_max, rate=1.0):
     x = np.linspace(x_min, x_max, 1000)
     a, b = np.random.uniform(0.5, 5) * rate, np.random.uniform(0.5, 5) * rate
     return x, stats.beta.pdf(x, a, b)
 
+
 def poisson_function(x_min, x_max, rate=1.0):
     lam = np.random.uniform(1, 20) * rate
     x = np.linspace(x_min, x_max, 1000)
     return x, (np.exp(-lam) * lam**x) / scipy.special.gamma(x + 1)
 
+
 def gamma_function(x_min, x_max, rate=1.0):
     x = np.linspace(x_min, x_max, 1000)
     shape, scale = np.random.uniform(0.5, 5) * rate, np.random.uniform(0.5, 2) * rate
     return x, stats.gamma.pdf(x, shape, scale=scale)
+
 
 def broken_distribution(x_min, x_max, rate=1.0):
     x_mid = np.random.uniform(x_min, x_max)
@@ -39,29 +45,35 @@ def broken_distribution(x_min, x_max, rate=1.0):
     y = np.concatenate([y1[:len(y1)//2], y2[len(y2)//2:]])
     return x, y
 
+
 def exponential_function(x_min, x_max, rate=1.0):
     a, b = np.random.uniform(0, 5) * rate, np.random.uniform(-2, 2) * rate
     x = np.linspace(x_min, x_max, 1000)
     return x, a * np.exp(b * x)
+
 
 def logistic_function(x_min, x_max, rate=1.0):
     L, k, x0 = rate, np.random.uniform(-2, 2), np.random.uniform(x_min, x_max)
     x = np.linspace(x_min, x_max, 1000)
     return x, L / (1 + np.exp(-k * (x - x0)))
 
+
 def tanh_function(x_min, x_max, rate=1.0):
     x = np.linspace(x_min, x_max, 1000)
     return x, np.tanh(rate * x)
+
 
 def logarithm_function(x_min, x_max, rate=1.0):
     a, base = rate, np.random.uniform(0.5, 2)
     x = np.linspace(x_min, x_max, 1000)
     return x, a * np.log(x + 1) / np.log(base)
 
+
 def polynomial_function(x_min, x_max, rate=1.0):
     coeffs = [np.random.uniform(-rate, rate) for _ in range(np.random.randint(1, 5))]
     x = np.linspace(x_min, x_max, 1000)
     return x, np.polyval(coeffs, x)
+
 
 def random_continuous_function(x_min, x_max, rate=1.0, apply_noise=True, choice=None):
     if not choice:
@@ -83,6 +95,7 @@ def random_continuous_function(x_min, x_max, rate=1.0, apply_noise=True, choice=
         'polynomial': polynomial_function
     }
     return functions[choice](x_min, x_max, rate, apply_noise) if choice == 'custom' else functions[choice](x_min, x_max, rate)
+
 
 def random_operation_on_functions(x_min, x_max, rate=1.0):
     distributions = ['custom', 'gaussian', 'beta', 'poisson', 'gamma', 'broken', 'exponential', 'logistic',

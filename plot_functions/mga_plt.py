@@ -36,7 +36,6 @@ class_2_color_cv = {box_class: color_mapping[color] for box_class, color in zip(
 def plot_image_with_boxes(img_path, boxes, jupyter=True):
     img = cv2.imread(img_path)
 
-    # Iterate through the boxes and draw rectangles
     for box in boxes:
         top_left = (int(box["x"] - box["width"] / 2), int(box["y"] - box["height"] / 2))
         bottom_right = (int(box["x"] + box["width"] / 2), int(box["y"] + box["height"] / 2))
@@ -44,10 +43,8 @@ def plot_image_with_boxes(img_path, boxes, jupyter=True):
         color = tuple([int(c * 255) for c in color])  # Convert color to range [0, 255]
         cv2.rectangle(img, top_left, bottom_right, color, 1)
 
-    # Convert BGR image to RGB
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    # Use PIL to display the image in Jupyter
     if jupyter:
         display(Image.fromarray(img_rgb))
     else:
@@ -70,13 +67,9 @@ def plot_w_box_from_path(index=0, base_path=os.path.join('dataset', 'train')):
     img_h, img_w = img.shape[:2]
     boxes = load_bounding_boxes(label_path)
 
-    # Create figure and axes
     fig, ax = plt.subplots(1)
-
-    # Display the image
     ax.imshow(img)
 
-    # Create a Rectangle patch
     for box in boxes:
         point = (box["x"] * img_w - box["width"] * img_w / 2, box["y"] * img_h - box["height"] * img_h / 2)
         rect = patches.Rectangle(
@@ -87,32 +80,20 @@ def plot_w_box_from_path(index=0, base_path=os.path.join('dataset', 'train')):
             edgecolor=class_2_color[box_classes[box['class']]],
             facecolor='none'
         )
-
-        # Add the patch to the Axes
         ax.add_patch(rect)
 
     plt.show()
 
 
 def show_images_in_grid(dataloader, n_rows, n_cols):
-    # Get a batch of images and labels
     images, labels = next(iter(dataloader))
-
-    # Prepare the matplotlib figure
     fig, axs = plt.subplots(n_rows, n_cols, figsize=(15, 15))
 
     for i, ax in enumerate(axs.flat):
-        # Make sure we don't go over the number of images in the batch
         if i >= len(images):
             break
-
-        # Get the label for the image
         label = indx_2_chart_label[labels[i].item()]
-
-        # Convert image from PyTorch tensor to NumPy array
         img = images[i].permute(1, 2, 0).numpy()
-
-        # Display the image and its label
         if img.shape[2] == 1:
             ax.imshow(img, cmap="gray")
         else:
@@ -125,11 +106,9 @@ def show_images_in_grid(dataloader, n_rows, n_cols):
 
 def plot_metrics_from_version(version, base_path="/kaggle/working/logs/csv/lightning_logs/"):
     metrics = pd.read_csv(f"{base_path}version_{version}/metrics.csv")
-
     train_acc_epoch = metrics["train_acc_epoch"][~metrics["train_acc_epoch"].isna()]
     val_acc_epoch = metrics["val_acc_epoch"][~metrics["val_acc_epoch"].isna()]
     epochs_number = list(range(1, len(train_acc_epoch) + 1))
-
     plt.figure(figsize=(10, 6))
     plt.plot(epochs_number, train_acc_epoch, label='Train Accuracy', marker='o')
     plt.plot(epochs_number, val_acc_epoch, label='Validation Accuracy', marker='o')

@@ -11,7 +11,7 @@ from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 import cv2
 import matplotlib.pyplot as plt
 from paddleocr import PaddleOCR
-from utils.util_funcs import lowercase_except_first_letter
+from utils.util_funcs import lowercase_except_first_letter, is_numeric
 
 
 def preprocess_image(image):
@@ -104,9 +104,9 @@ def rotate_and_crop(image, x_label):
             angle = 135
         if angle_90:
             if x_label:
-                angle = 360
-            else:
                 angle = 180
+            else:
+                angle = 360
         image = straighten_image(image, angle-90)
         thresh = preprocess_image(image)
         image = extract_middle_contour(image, thresh)
@@ -264,6 +264,19 @@ def initialize_ocr_resources(mode, gpu=False, model_paths={}):
     return reader, processor, model, paddleocr
 
 
+def post_process_texts(texts):
+    if is_numeric(texts):
+        numeric_text = np.array([int(text) if "." not in text else float(text) for text in texts])
+        diff_vec = numeric_text[1:] - numeric_text[:-1]
+        values, counts = np.unique(diff_vec, return_counts=True)
+        mode_value = values[np.argmax(counts)]
+        for i in np.where(diff_vec != mode_value)[0]:
+            numeric_text[i + 1] = numeric_text[i] + mode_value
+        return [str(text) for text in numeric_text]
+    return texts
+
+
+
 def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None, processor=None, model=None,
                             paddleocr=None, x_label=False):
     """
@@ -315,7 +328,13 @@ def tick_label2axis_label(box_torch):
     else:
         min_x, max_y = np.inf, 0
     y_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 0] < min_x], 1)
-    x_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 1] > max_y+torch.median(y_tick_labels[:,3]).item()/2], 0)
+    if len(y_tick_labels):
+        x_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 1] > max_y+
+                                                      min(torch.median(y_tick_labels[:,2]).item(),
+                                                          torch.median(y_tick_labels[:,3]).item())/2], 0)
+    else:
+        x_tick_labels = sort_torch_by_col(
+            tick_labels[tick_labels[:, 1] > max_y], 0)
     return x_tick_labels, y_tick_labels
 
 
@@ -350,11 +369,14 @@ def find_closest_ticks(tensor, labels, label_to_find, n_x_ticks, n_y_ticks):
     x_ticks = tensor[x_tick_mask]
     y_ticks = tensor[y_tick_mask]
 
+    med_x_dist = np.median(x_ticks[1:,0] - x_ticks[:-1,0])
     closest_ticks = []
     for target_point in target_points:
         distances_to_x_ticks = np.abs(x_ticks[:, 0] - target_point[0])
         distances_to_y_ticks = np.abs(y_ticks[:, 1] - target_point[1])
 
+        if torch.min(distances_to_x_ticks).item() > med_x_dist:
+            continue
         closest_x_ticks = distances_to_x_ticks.argsort()[:n_x_ticks]
         closest_y_ticks = distances_to_y_ticks.argsort()[:n_y_ticks]
 
@@ -363,22 +385,37 @@ def find_closest_ticks(tensor, labels, label_to_find, n_x_ticks, n_y_ticks):
     return closest_ticks, x_ticks, y_ticks
 
 
-def get_ip_data(x_y, labels, values, label_to_find, include_x_coors=False):
+def filter_close_points_x_axis(points, threshold=10):
+    retained_indices = [0]  # Retain the first point by default
+    for i in range(1, points.size(0)):
+        if all(abs(points[i, 0] - points[j, 0]) > threshold for j in retained_indices):
+            retained_indices.append(i)
+
+    retained = [True if idx in retained_indices else False for idx in range(points.size(0))]
+    return retained
+
+def get_ip_data(x_y, labels, values, label_to_find, include_x_coors=False, horizontal=False):
     intrest_points = x_y[np.array([label == label_to_find for label in labels])]
+    if label_to_find in ["bar", "line_point"] and not horizontal:
+        logic_vec = filter_close_points_x_axis(x_y[np.array([label == label_to_find for label in labels])])
+    else:
+        logic_vec = np.full(len(intrest_points), True)
     x_values_mask = np.array([label == "x_tick" for label in labels])
     y_tick_mask = np.array([label == "y_tick" for label in labels])
     x_values = values[x_values_mask]
     y_values = values[y_tick_mask]
     y_coords = x_y[y_tick_mask]
     if include_x_coors:
-        return intrest_points, x_values, y_values, y_coords, x_y[x_values_mask]
-    return intrest_points, x_values, y_values, y_coords
+        return intrest_points, x_values, y_values, y_coords, x_y[x_values_mask], logic_vec
+    return intrest_points, x_values, y_values, y_coords, logic_vec
 
 
 def get_categorical_output(interest_points, closest_ticks, x_values, y_values, y_coords, x_coords=None):
     y_output, x_output = [], []
     for interest_point, close_tick in zip(interest_points, closest_ticks):
         x_loc, y_loc = close_tick
+        if len(x_loc) == 0 or len(y_loc) == 0:
+            continue
         x_tick, y_vals = x_values[x_loc], y_values[y_loc]
         if len(x_loc) == 1 and len(y_loc) == 1:
             y_output.append(y_vals)
@@ -422,9 +459,15 @@ def get_numerical_output(interest_points, closest_ticks, x_values, y_values, x_c
     return np.array(y_output), np.array(x_output)
 
 
-def fill_non_complete_prediction(x_output, x_values, y_output, method="median"):
+def fill_non_complete_prediction(x_output, x_values, y_output, method="median", fill_edges=False):
     # better to give wrong prediction than to give short prediction
-    not_in_x_output = [value for value in x_values if value not in x_output]
+    edges = []
+    if not fill_edges and len(x_output) > 0:
+        start_edge = list(x_values[:np.where(x_values==x_output[0])[0][0]+1])
+        end_edge = list(x_values[np.where(x_values==x_output[-1])[0][0]:])
+        edges = start_edge + end_edge
+
+    not_in_x_output = [value for value in x_values if value not in x_output and value not in edges]
     # #might want to try some smarter prediciton based on close points
     # not_in_x_output_index = np.where(np.isin(x_values, not_in_x_output))[0]
     # not_in_x_output_xy = x_ticks_xy[not_in_x_output_index]
@@ -485,3 +528,52 @@ def keep_one_class(folder_path, class_2_keep='6'):
                     for line in lines:
                         if line.startswith(class_2_keep):
                             f.write(line)
+
+
+def compute_iou(box1, box2):
+    x1_center, y1_center, w1, h1 = box1
+    x2_center, y2_center, w2, h2 = box2
+
+    x1_min, y1_min = x1_center - w1 / 2, y1_center - h1 / 2
+    x1_max, y1_max = x1_center + w1 / 2, y1_center + h1 / 2
+
+    x2_min, y2_min = x2_center - w2 / 2, y2_center - h2 / 2
+    x2_max, y2_max = x2_center + w2 / 2, y2_center + h2 / 2
+
+    inter_x_min = max(x1_min, x2_min)
+    inter_y_min = max(y1_min, y2_min)
+    inter_x_max = min(x1_max, x2_max)
+    inter_y_max = min(y1_max, y2_max)
+
+    inter_area = max(inter_x_max - inter_x_min, 0) * max(inter_y_max - inter_y_min, 0)
+    union_area = w1 * h1 + w2 * h2 - inter_area
+
+    return inter_area / union_area
+
+
+def nms_with_confs(boxes, confs, iou_threshold=0.5, nms_class=6):
+    class_6_indices = (boxes[:, 4] == nms_class).nonzero(as_tuple=True)[0]
+    other_indices = (boxes[:, 4] != nms_class).nonzero(as_tuple=True)[0]
+
+    if not len(class_6_indices):
+        return boxes[other_indices]
+    class_6_boxes = boxes[class_6_indices]
+    class_6_confs = confs[class_6_indices]
+
+    sorted_indices = torch.argsort(class_6_confs, descending=True)
+    nms_boxes = []
+
+    while sorted_indices.numel() > 0:
+        dominant_idx = sorted_indices[0]
+        dominant_box = class_6_boxes[dominant_idx]
+        nms_boxes.append(dominant_box)
+
+        ious = torch.tensor([compute_iou(dominant_box[:4], class_6_boxes[idx][:4]) for idx in sorted_indices])
+        sorted_indices = sorted_indices[ious <= iou_threshold]
+
+    nms_boxes = torch.stack(nms_boxes)
+
+    combined_boxes = torch.cat([nms_boxes, boxes[other_indices]], dim=0)
+
+    return combined_boxes
+

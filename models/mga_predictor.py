@@ -23,8 +23,10 @@ from data.global_data import indx_2_chart_label
 
 class MGAPredictor:
     def __init__(self, model, acc_device="cpu", ocr_mode="trocr", classifier_method="comb",
-                 classifier_path=r"..\weights\classifier\resnet_34_999.pth", ocr_model_paths={}):
-        self.yolo_model = GraphDetecor(model, acc_device, ocr_mode, ocr_model_paths=ocr_model_paths)
+                 classifier_path=r"..\weights\classifier\resnet_34_999.pth", ocr_model_paths={},
+                 iou=0.5, conf=0.15):
+        self.yolo_model = GraphDetecor(model, acc_device, ocr_mode, ocr_model_paths=ocr_model_paths,
+                                       iou=iou, conf=conf)
         self.classifier_method = classifier_method
         if classifier_method in ["classifier", "comb"]:
             model = GraphClassifier(num_classes=5, resnet_model=34)
@@ -57,12 +59,13 @@ class MGAPredictor:
     @staticmethod
     def fill_output_missing_val(graph_type, x_output, y_output, x_values, y_values, horizontal=False):
         x_output_fill = []
-        if graph_type in ["line_point", 'dot_point']: # line points tend to miss intrest points but x values are robust
-            method = "median" if graph_type == "line_point" else 0
-            x_output_fill, y_output_fill = fill_non_complete_prediction(x_output, x_values, y_output, method=method)
+        if horizontal:
+            y_output_fill, x_output_fill = fill_non_complete_prediction(y_output, y_values, x_output, method=0)
             x_output, y_output = np.append(x_output, x_output_fill), np.append(y_output, y_output_fill)
-        if horizontal: # line points tend to miss intrest points but x values are robust
-            y_output_fill, x_output_fill = fill_non_complete_prediction(y_output, y_values, x_output, method="median")
+        elif graph_type in ["line_point", 'dot_point']: # points tend to miss intrest points but x values are robust
+            method = "median" if graph_type == "line_point" else 0
+            x_output_fill, y_output_fill = fill_non_complete_prediction(x_output, x_values, y_output, method=method,
+                                                                        fill_edges=graph_type!="line_point")
             x_output, y_output = np.append(x_output, x_output_fill), np.append(y_output, y_output_fill)
         filled = len(x_output_fill) > 0
         return x_output, y_output, filled
@@ -88,7 +91,10 @@ class MGAPredictor:
         x_y, labels, values = ticks_to_numeric(finsl_res, ["y_ticks"] if not horizontal else ["x_ticks"])
         closest_ticks, x_ticks_xy, y_ticks_xy = find_closest_ticks(x_y, labels, graph_type, 1 if not horizontal else 2,
                                                  1 if graph_type == 'dot_point' or horizontal else 2)
-        interest_points, x_values, y_values, y_coords, x_coords = get_ip_data(x_y, labels, values, graph_type, True)
+        interest_points, x_values, y_values, y_coords, x_coords, logic_vec = get_ip_data(x_y, labels, values,
+                                                                                         graph_type, True, horizontal)
+        interest_points, closest_ticks = interest_points[logic_vec], [c_tick for c_tick, val in zip(closest_ticks,
+                                                                                                    logic_vec) if val]
         valid_xy, x_output, y_output = MGAPredictor.validate_xy_values(x_values, y_values)
         if not valid_xy:
             return x_output, y_output
@@ -99,13 +105,16 @@ class MGAPredictor:
 
         x_output, y_output, filled = MGAPredictor.fill_output_missing_val(graph_type, x_output, y_output,
                                                                           x_values, y_values, horizontal)
-        # TODO method for using 2 closest points for filling na's
         if graph_type in ["line_point", 'dot_point'] and filled:
-            out_order = [np.where(x_output == x)[0][0] for x in x_values]
+            out_order = [np.where(x_output == x)[0][0] for x in x_values if x in x_output]
             x_output, y_output = x_output[out_order], y_output[out_order]
         if horizontal and filled:
-            out_order = [np.where(y_output == y)[0][0] for y in y_values]
+            out_order = [np.where(y_output == y)[0][0] for y in y_values if y in y_output]
             x_output, y_output = x_output[out_order], y_output[out_order]
+        if graph_type == "line_point":
+            if x_values[0] == '0' and 0 in y_values and '0' not in x_output:
+                x_output = np.append(['0'], x_output)
+                y_output = np.append([0], y_output)
         # output_order = MGAPredictor.get_output_order(x_output)
         return x_output, y_output
 
@@ -114,7 +123,10 @@ class MGAPredictor:
     def postprocess_numeric(finsl_res):
         x_y, labels, values = ticks_to_numeric(finsl_res, ["x_ticks", "y_ticks"])
         closest_ticks, x_ticks_xy, y_ticks_xy = find_closest_ticks(x_y, labels, "scatter_point", 2, 2)
-        interest_points, x_values, y_values, y_coords, x_coords = get_ip_data(x_y, labels, values, "scatter_point", True)
+        interest_points, x_values, y_values, y_coords, x_coords, logic_vec = get_ip_data(x_y, labels, values,
+                                                                                         "scatter_point", True)
+        interest_points, closest_ticks = interest_points[logic_vec], [c_tick for c_tick, val in zip(closest_ticks,
+                                                                                                    logic_vec) if val]
         valid_xy, x_output, y_output = MGAPredictor.validate_xy_values(x_values, y_values, False)
         if not valid_xy:
             return x_output, y_output
@@ -208,6 +220,7 @@ class MGAPredictor:
         if graph_type == "bar":
             x_output, y_output = self.postprocess_bar(finsl_res, graph_class)
             y_output = replace_infinite(y_output)
+            x_output = replace_infinite(x_output)
         if graph_type == "scatter_point":
             x_output, y_output = self.postprocess_scat(finsl_res)
             y_output = replace_infinite(y_output)
@@ -240,10 +253,12 @@ if __name__ == "__main__":
     annot_folder = r"D:\train\annotations"
     res_foldr = r"G:\My Drive\MGA\img_res_aug_detector_extracted" #r"D:\MGA\img_res"
     imgs_dir = "D:\MGA\sorted_images\extracted"
-    imgs_dir = r"G:\My Drive\MGA\zero_score_exctracted"
-    yolo_model = MGAPredictor(yolo_path, acc_device, ocr_mode)
+    # imgs_dir = r"G:\My Drive\MGA\zero_score_exctracted"
+    yolo_model = MGAPredictor(yolo_path, acc_device, ocr_mode, iou=0.5)
+    overwrite = True
+    save_res = True
     imgs_paths_0 = [
-
+        # r"G:\My Drive\MGA\zero_score_exctracted\007a18eb4e09.jpg"
         # r"D:\train\images\00d76c715deb.jpg",
         # r"D:\train\images\0073ac9cd239.jpg",
         #
@@ -269,17 +284,18 @@ if __name__ == "__main__":
                   ]
 
     res_files = [file.split("_")[0] for file in os.listdir(res_foldr)]
-    imgs_paths = imgs_paths_0 + [os.path.join(imgs_dir, img) for img in os.listdir(imgs_dir)
-                                 if img.split(".")[0] not in outlier_images]
-    for img_path in imgs_paths:
+    imgs_paths = [os.path.join(imgs_dir, img) for img in os.listdir(imgs_dir)
+                                 if img.split(".")[0] not in outlier_images and img.endswith(".jpg")]
+    for img_path in imgs_paths_0 + imgs_paths[182:]:
         try:
             img_name = os.path.basename(img_path).split(".")[0]
-            if img_name in res_files and not np.any([img_name in img_p for img_p in imgs_paths_0]):
-                print(img_name, " already processes")
-                continue
+            if not overwrite:
+                if img_name in res_files and not np.any([img_name in img_p for img_p in imgs_paths_0]):
+                    print(img_name, " already processes")
+                    continue
             print(img_name)
             finsl_res_out, benetech_score_eval, df_out, df_gt = yolo_model.get_bentech_score(img_path, annot_folder)
-            save_bentech_res(img_path, res_foldr, benetech_score_eval, df_out, df_gt)
+            save_bentech_res(img_path, res_foldr, benetech_score_eval, df_out, df_gt, save_res=save_res)
         except Exception as e:
             print(e)
-            save_bentech_res(img_path, res_foldr, "", failed=True)
+            save_bentech_res(img_path, res_foldr, "", failed=True, save_res=save_res)
