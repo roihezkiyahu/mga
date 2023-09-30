@@ -3,7 +3,8 @@ import torch
 import matplotlib.pyplot as plt
 from data.global_data import idx_to_class_box
 from utils.util_funcs import sort_torch_by_col
-from utils.yolo_tools import tick_label2axis_label, extract_text_from_boxes, initialize_ocr_resources, classify_bars
+from utils.yolo_tools import (tick_label2axis_label, extract_text_from_boxes, initialize_ocr_resources,
+                              classify_bars, post_process_texts, nms_with_confs)
 import copy
 import numpy as np
 
@@ -45,17 +46,21 @@ class GraphDetecor:
     def predict(self, img_list):
         res = self.model(img_list, augment=False, iou=self.iou, conf=self.conf)
         boxes = [torch.cat((result.boxes.xywh, result.boxes.cls.unsqueeze(1)), dim=1) for result in res]
+        confs = [result.boxes.conf for result in res]
         imgs = [result.orig_img for result in res]
-        finsl_res = [self.reformat_boxes(box_torch, img, img_res) for box_torch, img, img_res in zip(boxes, imgs, res)]
+        finsl_res = [self.reformat_boxes(box_torch, img, img_res, conf) for box_torch, img, img_res, conf
+                     in zip(boxes, imgs, res, confs)]
         return finsl_res, imgs
         # box_classes = ["plot", "x_tick", "y_tick", "scatter_point", "bar", "dot_point", "line_point", "tick_label"]
 
-    def reformat_boxes(self, box_torch, img, res):
+    def reformat_boxes(self, box_torch, img, res, confs):
         if self.show_res:
             plt.imshow(res.plot(font_size=0.5, labels=False))
             plt.show()
         box_torch = sort_torch_by_col(sort_torch_by_col(box_torch, 0), 4)
         box_torch_no_label = box_torch[~torch.isin(box_torch[:, 4], torch.tensor([1, 2, 7]).to(self.acc_device))]
+        box_torch_no_label = sort_torch_by_col(nms_with_confs(box_torch_no_label, confs, 0.1), 4)
+
         box_torch_no_label = torch.cat([box_torch_no_label[0,:].unsqueeze(0),
                                         sort_torch_by_col(box_torch_no_label[1:,:], 0)])
         x_tick_labels, y_tick_labels = tick_label2axis_label(box_torch)
@@ -65,6 +70,9 @@ class GraphDetecor:
                                                                         x_label=True)
         y_extracted_text, rot_45_y, rot_135_y = extract_text_from_boxes(img, y_tick_labels[:, :4], self.ocr_mode,
                                                                     self.acc_device =="cuda", *self.ocr_models)
+
+        x_extracted_text = post_process_texts(x_extracted_text)
+        y_extracted_text = post_process_texts(y_extracted_text)
         if rot_45_x: # change tick loc if there was a rotation
             x_tick_labels[:, 0] = x_tick_labels[:, 0] + x_tick_labels[:, 2] /2
         if rot_135_x: # change tick loc if there was a rotation

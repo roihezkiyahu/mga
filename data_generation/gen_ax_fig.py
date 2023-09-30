@@ -300,8 +300,10 @@ def determine_data_type(x_values):
         return 'categorical'
 
 
-# Function to determine if the data is categorical or numerical based on x and y values
 def determine_overall_data_type(x_values, y_values):
+    """
+    Function to determine if the data is categorical or numerical based on x and y values
+    """
     x_type = determine_data_type(x_values)
     y_type = determine_data_type(y_values)
 

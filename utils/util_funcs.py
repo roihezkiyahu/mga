@@ -41,17 +41,13 @@ def linear_regression(x, y):
     sum_y = sum(y)
     sum_xy = sum(xi * yi for xi, yi in zip(x, y))
     sum_x_squared = sum(xi ** 2 for xi in x)
-
     slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x_squared - sum_x ** 2)
     intercept = (sum_y - slope * sum_x) / n
-
     y_pred = [slope * xi + intercept for xi in x]
-
     y_mean = sum_y / n
     ss_total = sum((yi - y_mean) ** 2 for yi in y)
     ss_residual = sum((yi - yhat) ** 2 for yi, yhat in zip(y, y_pred))
     r_squared = 1 - (ss_residual / ss_total)
-
     return y_pred, slope, intercept, r_squared
 
 def safe_literal_eval(value):
@@ -317,7 +313,6 @@ def sort_yolo_folders(tr_img, tr_labels, valid_names=[], overwrite=False, base_d
         os.makedirs(os.path.join(base_dir, subfolder, 'labels'), exist_ok=True)
     all_images = [f for f in os.listdir(tr_img) if f.endswith('.jpg') and f.split(".")[0] not in outlier_images]
 
-    # Shuffle and split the data
     random.shuffle(all_images)
     train_split = int(train_percent * len(all_images))
     valid_split = int(valid_percent * len(all_images)) + train_split
@@ -326,7 +321,6 @@ def sort_yolo_folders(tr_img, tr_labels, valid_names=[], overwrite=False, base_d
     valid_images = all_images[train_split:valid_split]
     test_images = all_images[valid_split:]
 
-    # Copy files to the new directory structure
     copy_files(train_images, tr_img, tr_labels, os.path.join(base_dir, 'train', 'images'),
                os.path.join(base_dir, 'train', 'labels'), valid_names, overwrite=overwrite)
     copy_files(valid_images, tr_img, tr_labels, os.path.join(base_dir, 'valid', 'images'),
@@ -403,6 +397,8 @@ def remove_characters(s, chars_to_remove=[",", "$", "", "C"]):
 def replace_infinite(input_list):
     if not isinstance(input_list, list):
         input_list = list(input_list)
+    if isinstance(input_list[0], str):
+        return input_list
     mask = np.isnan(input_list) | np.isinf(input_list)
     array = np.array(input_list)
     array[mask] = 0
@@ -446,7 +442,7 @@ def graph_class2type(graph_class):
 
 
 def save_bentech_res(img_path, res_foldr, benetech_score_eval, df_out=pd.DataFrame({}), df_gt=pd.DataFrame({}),
-                     failed=False):
+                     failed=False, save_res=True):
     img_name = os.path.basename(img_path).split(".")[0]
     if not failed:
         df_name = os.path.join(res_foldr, f"{img_name}_{int(benetech_score_eval * 100)}.csv")
@@ -457,67 +453,44 @@ def save_bentech_res(img_path, res_foldr, benetech_score_eval, df_out=pd.DataFra
         df_name = os.path.join(res_foldr, f"{img_name}_fail.csv")
         df_gt_name = os.path.join(res_foldr, f"{img_name}_gt.csv")
         print("failed:", img_path)
-    df_out.to_csv(df_name)
-    df_gt.to_csv(df_gt_name)
+    if save_res:
+        df_out.to_csv(df_name)
+        df_gt.to_csv(df_gt_name)
 
 
 def create_dataframe(folder_path):
-    # List all the filenames inside the folder
     file_names = os.listdir(folder_path)
-
-    # Create a dictionary to store file paths for each prefix (filename without suffix)
     file_paths_dict = defaultdict(dict)
     for file_name in file_names:
         if not file_name.endswith(".csv"):
             continue
-        # Get the prefix and suffix from the file name
         prefix, suffix = file_name.rsplit('_', 1)
         suffix_type = 'score' if suffix.replace('.csv', '').isnumeric() else suffix.replace('.csv', '')
-
-        # Store the file path in the dictionary
         file_path = os.path.join(folder_path, file_name)
         file_paths_dict[prefix][suffix_type] = file_path
 
-    # Convert the dictionary to a list of dictionaries (one for each prefix)
     file_paths_list = list(file_paths_dict.values())
-
-    # Initialize a list to store the data for each row in the new dataframe
     data_list = []
-
-    # Iterate over each pair of files
     for file_paths in tqdm(file_paths_list):
-        # Get the prefix (common part of the filename)
         prefix = os.path.basename(file_paths['gt']).rsplit('_', 1)[0]
-
-        # Step 1: Extract the "filename" from the prefix
         filename = prefix
-
-        # Step 2: Extract the "score" from the suffix of the "score" file (if available)
         score = '0'
         if 'score' in file_paths:
             score = os.path.basename(file_paths['score']).rsplit('_', 1)[-1].replace('.csv', '')
-
-        # Step 3: Read the "chart_type" column from the "score" file (if available)
         chart_type = None
         if 'score' in file_paths:
             score_df = pd.read_csv(file_paths['score'])
             chart_type = score_df['chart_type'].iloc[0] if 'chart_type' in score_df.columns else None
-
-        # Step 4: Read the "chart_type" column from the "gt" file and treat it as "chart_type_gt" (if available)
         chart_type_gt = None
         if 'gt' in file_paths:
             gt_df = pd.read_csv(file_paths['gt'])
             chart_type_gt = gt_df['chart_type'].iloc[0] if 'chart_type' in gt_df.columns else None
-
-        # Append the data to the list
         data_list.append({
             'filename': filename,
             'score': score,
             'chart_type': chart_type,
             'chart_type_gt': chart_type_gt
         })
-
-    # Create a new dataframe with the data
     result_df = pd.DataFrame(data_list)
 
     return result_df
