@@ -90,7 +90,10 @@ class MGAPredictor:
         x_y, labels, values = ticks_to_numeric(finsl_res, ["y_ticks"] if not horizontal else ["x_ticks"])
         closest_ticks, x_ticks_xy, y_ticks_xy = find_closest_ticks(x_y, labels, graph_type, 1 if not horizontal else 2,
                                                  1 if graph_type == 'dot_point' or horizontal else 2)
-        interest_points, x_values, y_values, y_coords, x_coords = get_ip_data(x_y, labels, values, graph_type, True)
+        interest_points, x_values, y_values, y_coords, x_coords, logic_vec = get_ip_data(x_y, labels, values,
+                                                                                         graph_type, True, horizontal)
+        interest_points, closest_ticks = interest_points[logic_vec], [c_tick for c_tick, val in zip(closest_ticks,
+                                                                                                    logic_vec) if val]
         valid_xy, x_output, y_output = MGAPredictor.validate_xy_values(x_values, y_values)
         if not valid_xy:
             return x_output, y_output
@@ -115,7 +118,10 @@ class MGAPredictor:
     def postprocess_numeric(finsl_res):
         x_y, labels, values = ticks_to_numeric(finsl_res, ["x_ticks", "y_ticks"])
         closest_ticks, x_ticks_xy, y_ticks_xy = find_closest_ticks(x_y, labels, "scatter_point", 2, 2)
-        interest_points, x_values, y_values, y_coords, x_coords = get_ip_data(x_y, labels, values, "scatter_point", True)
+        interest_points, x_values, y_values, y_coords, x_coords, logic_vec = get_ip_data(x_y, labels, values,
+                                                                                         "scatter_point", True)
+        interest_points, closest_ticks = interest_points[logic_vec], [c_tick for c_tick, val in zip(closest_ticks,
+                                                                                                    logic_vec) if val]
         valid_xy, x_output, y_output = MGAPredictor.validate_xy_values(x_values, y_values, False)
         if not valid_xy:
             return x_output, y_output
@@ -133,7 +139,7 @@ class MGAPredictor:
         x_output, y_output = MGAPredictor.postprocess_cat(finsl_res, graph_type="dot_point")
         if is_numeric(x_output, dot=True):
             x_output = [re.sub(r'[a-zA-Z]', '', val) for val in x_output]
-            return np.array([float(val) if val != "" else 0 for val in x_output]), y_output
+            return np.array([float(val) if val not in ["None_ocr_val", ""] else 0 for val in x_output]), y_output
         return x_output, y_output
 
     @staticmethod
@@ -215,6 +221,11 @@ class MGAPredictor:
             y_output = replace_infinite(y_output)
             x_output = replace_infinite(x_output)
 
+        if isinstance(x_output[0], str):
+            x_output = [x if x != "None_ocr_val" else "" for x in x_output]
+        if isinstance(y_output[0], str):
+            y_output = [y if y != "None_ocr_val" else "" for y in y_output]
+
         final_output = [{"id": f"{img_name}_x", "data_series": x_output, "chart_type": graph_class},
                         {"id": f"{img_name}_y", "data_series": y_output, "chart_type": graph_class}]
         return final_output
@@ -236,18 +247,20 @@ class MGAPredictor:
 
 
 if __name__ == "__main__":
-    yolo_path = r"C:\Users\Nir\PycharmProjects\mga\weights\detector\img640_batch_32_lr1e4_iou5_bg6000_aug40k_test.pt"
+    yolo_path = r"C:\Users\Nir\PycharmProjects\mga\weights\detector\img640_batch_32_lr1e4_iou5_bg6000_aug60k_cont_long.pt"
     acc_device = "cuda" if torch.cuda.is_available() else "cpu"
     ocr_mode = "paddleocr"
     annot_folder = r"D:\train\annotations"
-    res_foldr = r"G:\My Drive\MGA\img_res_aug_detector_extracted" #r"D:\MGA\img_res"
+    res_foldr = r"G:\My Drive\MGA\img_res_aug_detector_extracted_run26" #r"D:\MGA\img_res"
     imgs_dir = "D:\MGA\sorted_images\extracted"
     # imgs_dir = r"G:\My Drive\MGA\zero_score_exctracted"
+    non_imgs_zero = [file.split("_")[0] for file in os.listdir(r"G:\My Drive\MGA\img_res_aug_detector_extracted") if
+                 not (file.endswith("_0.csv") or file.endswith("_gt.csv"))]
     yolo_model = MGAPredictor(yolo_path, acc_device, ocr_mode, iou=0.5)
     overwrite = True
     save_res = True
     imgs_paths_0 = [
-        # r"G:\My Drive\MGA\zero_score_exctracted\007a18eb4e09.jpg"
+        # r"D:\MGA\sorted_images\extracted\070fab0a5cbb.jpg"
         # r"D:\train\images\00d76c715deb.jpg",
         # r"D:\train\images\0073ac9cd239.jpg",
         #
@@ -274,8 +287,8 @@ if __name__ == "__main__":
 
     res_files = [file.split("_")[0] for file in os.listdir(res_foldr)]
     imgs_paths = [os.path.join(imgs_dir, img) for img in os.listdir(imgs_dir)
-                                 if img.split(".")[0] not in outlier_images and img.endswith(".jpg")]
-    for img_path in imgs_paths_0 + imgs_paths[182:]:
+                                 if img.split(".")[0] not in outlier_images + non_imgs_zero and img.endswith(".jpg") ]
+    for img_path in imgs_paths_0 + imgs_paths:
         try:
             img_name = os.path.basename(img_path).split(".")[0]
             if not overwrite:

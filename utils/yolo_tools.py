@@ -264,9 +264,20 @@ def initialize_ocr_resources(mode, gpu=False, model_paths={}):
     return reader, processor, model, paddleocr
 
 
+def convert_texts_with_default(texts, default=0):
+    values = []
+    for text in texts:
+        try:
+            value = point_to_numeric(text)
+        except ValueError:
+            value = default
+        values.append(value)
+    return np.array(values)
+
+
 def post_process_texts(texts):
     if is_numeric(texts):
-        numeric_text = np.array([int(text) if "." not in text else float(text) for text in texts])
+        numeric_text = convert_texts_with_default(texts) # np.array([int(text) if "." not in text else float(text) for text in texts])
         diff_vec = numeric_text[1:] - numeric_text[:-1]
         values, counts = np.unique(diff_vec, return_counts=True)
         mode_value = values[np.argmax(counts)]
@@ -338,14 +349,16 @@ def tick_label2axis_label(box_torch):
     return x_tick_labels, y_tick_labels
 
 
-def point_to_numeric(val, chars_to_remove):
+def point_to_numeric(val, chars_to_remove=["%", "$", ",", "C", "*"]):
     try:
-        return float(remove_characters(val, chars_to_remove))
+        val = remove_characters(val, chars_to_remove)
+        val = int(val) if "." not in val else float(val)
+        return val
     except ValueError:
         return np.inf
 
 
-def ticks_to_numeric(finsl_res, tick_to_turn=["y_ticks"], chars_to_remove=["%", "$", ",", "C"]):
+def ticks_to_numeric(finsl_res, tick_to_turn=["y_ticks"], chars_to_remove=["%", "$", ",", "C", "*"]):
     x_y, labels, values, _ = finsl_res
     values = np.array(values, dtype=object)
     if "y_ticks" in tick_to_turn:
@@ -369,11 +382,14 @@ def find_closest_ticks(tensor, labels, label_to_find, n_x_ticks, n_y_ticks):
     x_ticks = tensor[x_tick_mask]
     y_ticks = tensor[y_tick_mask]
 
+    # half_med_x_dist = np.median(x_ticks[1:,0] - x_ticks[:-1,0])/2
     closest_ticks = []
     for target_point in target_points:
         distances_to_x_ticks = np.abs(x_ticks[:, 0] - target_point[0])
         distances_to_y_ticks = np.abs(y_ticks[:, 1] - target_point[1])
 
+        # if torch.min(distances_to_x_ticks).item() > half_med_x_dist:
+        #     continue
         closest_x_ticks = distances_to_x_ticks.argsort()[:n_x_ticks]
         closest_y_ticks = distances_to_y_ticks.argsort()[:n_y_ticks]
 
@@ -382,25 +398,33 @@ def find_closest_ticks(tensor, labels, label_to_find, n_x_ticks, n_y_ticks):
     return closest_ticks, x_ticks, y_ticks
 
 
-def filter_close_points_x_axis(points, threshold=10):
-    retained_indices = [0]  # Retain the first point by default
-    for i in range(1, points.size(0)):
-        if all(abs(points[i, 0] - points[j, 0]) > threshold for j in retained_indices):
+def filter_close_points(points, axis=0, threshold=10):
+    retained_indices = [0]
+    for i in range(1, points.shape[0]):
+        if all(abs(points[i, axis] - points[j, axis]) > threshold for j in retained_indices):
             retained_indices.append(i)
 
-    retained = [True if idx in retained_indices else False for idx in range(points.size(0))]
+    retained = [True if idx in retained_indices else False for idx in range(points.shape[0])]
     return retained
 
-def get_ip_data(x_y, labels, values, label_to_find, include_x_coors=False):
+
+def get_ip_data(x_y, labels, values, label_to_find, include_x_coors=False, horizontal=False):
     intrest_points = x_y[np.array([label == label_to_find for label in labels])]
+    if label_to_find in ["bar", "line_point"] :
+        if not horizontal:
+            logic_vec = filter_close_points(x_y[np.array([label == label_to_find for label in labels])])
+        else:
+            logic_vec = filter_close_points(x_y[np.array([label == label_to_find for label in labels])], axis=1)
+    else:
+        logic_vec = np.full(len(intrest_points), True)
     x_values_mask = np.array([label == "x_tick" for label in labels])
     y_tick_mask = np.array([label == "y_tick" for label in labels])
     x_values = values[x_values_mask]
     y_values = values[y_tick_mask]
     y_coords = x_y[y_tick_mask]
     if include_x_coors:
-        return intrest_points, x_values, y_values, y_coords, x_y[x_values_mask]
-    return intrest_points, x_values, y_values, y_coords
+        return intrest_points, x_values, y_values, y_coords, x_y[x_values_mask], logic_vec
+    return intrest_points, x_values, y_values, y_coords, logic_vec
 
 
 def get_categorical_output(interest_points, closest_ticks, x_values, y_values, y_coords, x_coords=None):

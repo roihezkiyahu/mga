@@ -366,14 +366,14 @@ def is_numeric(value, dot=False):
         if "+" in single_value:
             return False
         try:
-            float(single_value)
+            float(remove_characters(single_value, chars_to_remove=["%", "$", ",", "C", "*"]))
             return True
         except ValueError:
             return False
 
     if isinstance(value, Iterable):
         if not dot:
-            return all(check_numeric(single_value) for single_value in value)
+            return all([check_numeric(single_value) for single_value in value if single_value != "None_ocr_val"])
         else:
             numeric_bool = [check_numeric(single_value) for single_value in value]
             if np.mean(numeric_bool) > 0.75:
@@ -385,12 +385,12 @@ def is_numeric(value, dot=False):
         return check_numeric(value)
 
 
-def remove_characters(s, chars_to_remove=[",", "$", "", "C"]):
+def remove_characters(s, chars_to_remove=[",", "$", "", "C", "*"]):
     for char in chars_to_remove:
         s = s.replace(char, "")
     if "K" in s:
         s = s.replace("K", "")
-        s = float(s)*1000
+        s = str(float(s)*1000)
     return s
 
 

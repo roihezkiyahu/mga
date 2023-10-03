@@ -60,7 +60,15 @@ class GraphDetecor:
         box_torch = sort_torch_by_col(sort_torch_by_col(box_torch, 0), 4)
         box_torch_no_label = box_torch[~torch.isin(box_torch[:, 4], torch.tensor([1, 2, 7]).to(self.acc_device))]
         box_torch_no_label = sort_torch_by_col(nms_with_confs(box_torch_no_label, confs, 0.1), 4)
+        if box_torch_no_label[0, 4] == 0:
+            condition1 = box_torch_no_label[:, 0] <= box_torch_no_label[0, 0] + box_torch_no_label[0, 2] / 2 + 5
+            condition2 = box_torch_no_label[:, 1] >= box_torch_no_label[0, 1] - box_torch_no_label[0, 3] / 2 - 5
+            condition3 = box_torch_no_label[:, 1] <= box_torch_no_label[0, 1] + box_torch_no_label[0, 3] / 2 + 5
+            condition4 = torch.logical_or(box_torch_no_label[:, 0] >= box_torch_no_label[0, 0] -
+                                          box_torch_no_label[0, 2] / 2 - 5, box_torch_no_label[:, 4] != 3)
 
+            box_torch_no_label = box_torch_no_label[torch.logical_and(torch.logical_and(condition1, condition2),
+                                                                      torch.logical_and(condition3, condition4))]
         box_torch_no_label = torch.cat([box_torch_no_label[0,:].unsqueeze(0),
                                         sort_torch_by_col(box_torch_no_label[1:,:], 0)])
         x_tick_labels, y_tick_labels = tick_label2axis_label(box_torch)
