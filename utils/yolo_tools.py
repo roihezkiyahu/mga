@@ -276,14 +276,17 @@ def convert_texts_with_default(texts, default=0):
 
 
 def post_process_texts(texts):
-    if is_numeric(texts):
-        numeric_text = convert_texts_with_default(texts) # np.array([int(text) if "." not in text else float(text) for text in texts])
-        diff_vec = numeric_text[1:] - numeric_text[:-1]
-        values, counts = np.unique(diff_vec, return_counts=True)
-        mode_value = values[np.argmax(counts)]
-        for i in np.where(~np.isclose(diff_vec, mode_value, atol=1e-8))[0]:
-            numeric_text[i + 1] = numeric_text[i] + mode_value
-        return [str(text) for text in numeric_text]
+    try:
+        if is_numeric(texts, thresh=0.7):
+            numeric_text = convert_texts_with_default(texts) # np.array([int(text) if "." not in text else float(text) for text in texts])
+            diff_vec = numeric_text[1:] - numeric_text[:-1]
+            values, counts = np.unique(diff_vec[np.isfinite(diff_vec)], return_counts=True)
+            mode_value = values[np.argmax(counts)]
+            for i in np.where(np.any([~np.isclose(diff_vec, mode_value, atol=1e-8), ~np.isfinite(diff_vec)], axis=0))[0]:
+                numeric_text[i + 1] = numeric_text[i] + mode_value
+            return [str(int(text)) if float(text) == int(text) else str(text) for text in numeric_text]
+    except Exception as e:
+        print(e)
     return texts
 
 
@@ -336,9 +339,11 @@ def tick_label2axis_label(box_torch):
     if torch.sum(box_torch[:, 4] == 0) > 0:
         plot_xywh = box_torch[box_torch[:, 4] == 0][0]
         min_x, max_y = plot_xywh[0] - plot_xywh[2] / 2-5, plot_xywh[1] + plot_xywh[3] / 2
+        min_y = plot_xywh[1] - plot_xywh[3] / 2-5
     else:
-        min_x, max_y = np.inf, 0
-    y_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 0] < min_x], 1)
+        min_x, max_y, min_y = np.inf, 0, 0
+    y_condition = torch.logical_and(tick_labels[:, 0] < min_x, tick_labels[:, 1] > min_y)
+    y_tick_labels = sort_torch_by_col(tick_labels[y_condition], 1)
     if len(y_tick_labels):
         x_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 1] > max_y+
                                                       min(torch.median(y_tick_labels[:,2]).item(),
@@ -562,9 +567,9 @@ def compute_iou(box1, box2):
     return inter_area / union_area
 
 
-def nms_with_confs(boxes, confs, iou_threshold=0.5, nms_class=6):
-    class_6_indices = (boxes[:, 4] == nms_class).nonzero(as_tuple=True)[0]
-    other_indices = (boxes[:, 4] != nms_class).nonzero(as_tuple=True)[0]
+def nms_with_confs(boxes, confs, iou_threshold=0.5, nms_class=[4, 6]):
+    class_6_indices = torch.isin(boxes[:, 4], torch.tensor(nms_class)).nonzero(as_tuple=True)[0]
+    other_indices = (~torch.isin(boxes[:, 4], torch.tensor(nms_class))).nonzero(as_tuple=True)[0]
 
     if not len(class_6_indices):
         return boxes[other_indices]

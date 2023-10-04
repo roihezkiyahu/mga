@@ -359,7 +359,7 @@ def sort_torch_by_col(torch_input, col=1):
     return torch_input[torch_input[:, col].argsort()]
 
 
-def is_numeric(value, dot=False):
+def is_numeric(value, dot=False, thresh=1):
     def check_numeric(single_value):
         if isinstance(single_value, float) or isinstance(single_value, int):
             return True
@@ -373,7 +373,8 @@ def is_numeric(value, dot=False):
 
     if isinstance(value, Iterable):
         if not dot:
-            return all([check_numeric(single_value) for single_value in value if single_value != "None_ocr_val"])
+            numeric_bool = [check_numeric(single_value) for single_value in value]
+            return np.mean(numeric_bool) >= thresh
         else:
             numeric_bool = [check_numeric(single_value) for single_value in value]
             if np.mean(numeric_bool) > 0.75:

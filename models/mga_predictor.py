@@ -24,7 +24,7 @@ from data.global_data import indx_2_chart_label
 class MGAPredictor:
     def __init__(self, model, acc_device="cpu", ocr_mode="trocr", classifier_method="comb",
                  classifier_path=r"..\weights\classifier\resnet_34_999.pth", ocr_model_paths={},
-                 iou=0.5, conf=0.15):
+                 iou=0.5, conf=0.05):
         self.yolo_model = GraphDetecor(model, acc_device, ocr_mode, ocr_model_paths=ocr_model_paths,
                                        iou=iou, conf=conf)
         self.classifier_method = classifier_method
@@ -92,6 +92,9 @@ class MGAPredictor:
                                                  1 if graph_type == 'dot_point' or horizontal else 2)
         interest_points, x_values, y_values, y_coords, x_coords, logic_vec = get_ip_data(x_y, labels, values,
                                                                                          graph_type, True, horizontal)
+        if horizontal:
+            y_order = interest_points[:,1].argsort()
+            interest_points, closest_ticks = interest_points[y_order, :], [closest_ticks[place] for place in y_order]
         interest_points, closest_ticks = interest_points[logic_vec], [c_tick for c_tick, val in zip(closest_ticks,
                                                                                                     logic_vec) if val]
         valid_xy, x_output, y_output = MGAPredictor.validate_xy_values(x_values, y_values)
@@ -243,6 +246,10 @@ class MGAPredictor:
         with open(annot_path) as json_file:
             anot = json.load(json_file)
         df_gt = self.anot_to_gt(anot, img_names[0])
+        print(df.iloc[0,0])
+        print(df.iloc[1,0])
+        print(df_gt.iloc[0, 0])
+        print(df_gt.iloc[1, 0])
         return finsl_res_out, benetech_score(df_gt, df), df, df_gt
 
 
@@ -260,7 +267,7 @@ if __name__ == "__main__":
     overwrite = True
     save_res = True
     imgs_paths_0 = [
-        # r"D:\MGA\sorted_images\extracted\070fab0a5cbb.jpg"
+        r"D:\MGA\sorted_images\dot\00b1597b6970.jpg"
         # r"D:\train\images\00d76c715deb.jpg",
         # r"D:\train\images\0073ac9cd239.jpg",
         #
@@ -288,7 +295,7 @@ if __name__ == "__main__":
     res_files = [file.split("_")[0] for file in os.listdir(res_foldr)]
     imgs_paths = [os.path.join(imgs_dir, img) for img in os.listdir(imgs_dir)
                                  if img.split(".")[0] not in outlier_images + non_imgs_zero and img.endswith(".jpg") ]
-    for img_path in imgs_paths_0 + imgs_paths:
+    for img_path in imgs_paths_0 + imgs_paths[148:]:
         try:
             img_name = os.path.basename(img_path).split(".")[0]
             if not overwrite:

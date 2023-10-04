@@ -34,14 +34,21 @@ class_2_color_cv = {box_class: color_mapping[color] for box_class, color in zip(
 
 
 def plot_image_with_boxes(img_path, boxes, jupyter=True):
-    img = cv2.imread(img_path)
+    if isinstance(img_path, str):
+        img = cv2.imread(img_path)
+    else:
+        img = img_path.copy()
 
     for box in boxes:
         top_left = (int(box["x"] - box["width"] / 2), int(box["y"] - box["height"] / 2))
         bottom_right = (int(box["x"] + box["width"] / 2), int(box["y"] + box["height"] / 2))
-        color = class_2_color_cv[box['class']]
+        box_class = box['class']
+        if isinstance(box_class, str):
+            color = class_2_color_cv[box_class]
+        else:
+            color = class_2_color_cv[box_classes[box_class]]
         color = tuple([int(c * 255) for c in color])  # Convert color to range [0, 255]
-        cv2.rectangle(img, top_left, bottom_right, color, 1)
+        cv2.rectangle(img, top_left, bottom_right, color, 2)
 
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 

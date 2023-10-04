@@ -1,6 +1,7 @@
 from ultralytics import YOLO
 import torch
 import matplotlib.pyplot as plt
+from plot_functions.mga_plt import plot_image_with_boxes
 from data.global_data import idx_to_class_box
 from utils.util_funcs import sort_torch_by_col
 from utils.yolo_tools import (tick_label2axis_label, extract_text_from_boxes, initialize_ocr_resources,
@@ -9,7 +10,7 @@ import copy
 import numpy as np
 
 class GraphDetecor:
-    def __init__(self, model, acc_device="cpu", ocr_mode="paddleocr", iou=0.5, conf=0.15, show_res=False,
+    def __init__(self, model, acc_device="cpu", ocr_mode="paddleocr", iou=0.5, conf=0.15, show_res=True,
                  ocr_model_paths={}):
         # TODO add cuda support
         if isinstance(model, str):
@@ -55,11 +56,13 @@ class GraphDetecor:
 
     def reformat_boxes(self, box_torch, img, res, confs):
         if self.show_res:
+            plt.imshow(img)
+            plt.show()
             plt.imshow(res.plot(font_size=0.5, labels=False))
             plt.show()
+        box_torch = nms_with_confs(box_torch, confs, 0.1)
         box_torch = sort_torch_by_col(sort_torch_by_col(box_torch, 0), 4)
         box_torch_no_label = box_torch[~torch.isin(box_torch[:, 4], torch.tensor([1, 2, 7]).to(self.acc_device))]
-        box_torch_no_label = sort_torch_by_col(nms_with_confs(box_torch_no_label, confs, 0.1), 4)
         if box_torch_no_label[0, 4] == 0:
             condition1 = box_torch_no_label[:, 0] <= box_torch_no_label[0, 0] + box_torch_no_label[0, 2] / 2 + 5
             condition2 = box_torch_no_label[:, 1] >= box_torch_no_label[0, 1] - box_torch_no_label[0, 3] / 2 - 5
@@ -89,6 +92,10 @@ class GraphDetecor:
         d_type = ["plot_bb"] + [idx_to_class_box[label.item()] for label in box_torch_no_label[1:, 4]] + \
                  ["x_tick"]*len(x_tick_labels) + ["y_tick"]*len(y_tick_labels)
         values = [float('nan')]*len(box_torch_no_label) + x_extracted_text + y_extracted_text
+        # if self.show_res:
+        #     final_x_y_data_ext = torch.cat([box_torch_no_label[:, :5], x_tick_labels[:, :5], y_tick_labels[:, :5]])
+        #     plot_image_with_boxes(img, [dict(zip(["x", "y", "width", "height", "class"], box.astype(int))) for box in
+        #                                 final_x_y_data_ext.numpy()], False)
         return final_x_y_data, d_type, values, box_torch[0, :4].tolist()
 
 
