@@ -90,10 +90,11 @@ def extract_middle_contour(image, thresh):
     return cropped
 
 
-def rotate_and_crop(image, x_label):
+def rotate_and_crop(image, x_label, angle=None):
     if not isinstance(image, np.ndarray):
         image = np.array(image)
-    angle = detect_rotation(image)
+    if isinstance(angle, type(None)):
+        angle = detect_rotation(image)
     angle_45 = 35 < abs(angle) < 55
     angle_135 = 125 < abs(angle) < 155
     angle_90 = 80 < abs(angle) < 100
@@ -348,6 +349,8 @@ def tick_label2axis_label(box_torch):
         x_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 1] > max_y+
                                                       min(torch.median(y_tick_labels[:,2]).item(),
                                                           torch.median(y_tick_labels[:,3]).item())/2], 0)
+        if not len(x_tick_labels):
+            x_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 1] > max_y], 0)
     else:
         x_tick_labels = sort_torch_by_col(
             tick_labels[tick_labels[:, 1] > max_y], 0)
@@ -374,7 +377,7 @@ def ticks_to_numeric(finsl_res, tick_to_turn=["y_ticks"], chars_to_remove=["%", 
         values[mask] = [point_to_numeric(val, chars_to_remove) for val in values[mask]]
     # output_order = np.argsort(x_y[mask][:, 0])
     inf_mask = [np.isinf(val) if isinstance(val, float) else False for val in values]
-    x_y[inf_mask] = torch.tensor([np.inf, np.inf])
+    x_y[inf_mask] = torch.tensor([np.inf, np.inf, np.inf, np.inf])
     return x_y, labels, values
 
 
@@ -461,6 +464,39 @@ def get_categorical_output(interest_points, closest_ticks, x_values, y_values, y
     return np.array(y_output), np.array(x_output)
 
 
+def get_categorical_output_multi_points(interest_points, closest_ticks, x_values, y_values, y_coords, x_coords=None):
+    all_y_preds, all_x_preds = [], []
+
+    for interest_point, close_tick in zip(interest_points, closest_ticks):
+        y_preds, x_preds = [], []
+        x_loc, y_loc = close_tick
+
+        if len(x_loc) == 0 or len(y_loc) == 0:
+            continue
+        x_tick, y_vals = x_values[x_loc], y_values[y_loc]
+
+        if not isinstance(x_coords, type(None)):
+            for i in range(len(x_coords) - 1):
+                x_xy_1, x_xy_2 = x_coords[i], x_coords[i + 1]
+                x_vals = x_values[i:i + 2]
+                pixel_val = (x_vals[1] - x_vals[0]) / (x_xy_2[0] - x_xy_1[0])
+                interest_point_x_val = pixel_val * (interest_point[0] - x_xy_1[0]) + x_vals[0]
+                x_preds.append(interest_point_x_val)
+            all_x_preds.append(np.median(np.array(x_preds)))
+            all_y_preds.append(y_vals)
+        else:
+            for i in range(len(y_coords) - 1):
+                xy_1, xy_2 = y_coords[i], y_coords[i + 1]
+                y_vals = y_values[i:i + 2]
+                pixel_val = (y_vals[0] - y_vals[1]) / (xy_2[1] - xy_1[1])
+                interest_point_y_val = pixel_val * (xy_2[1] - interest_point[1]) + y_vals[1]
+                y_preds.append(interest_point_y_val)
+            all_y_preds.append(np.median(np.array(y_preds)))
+            all_x_preds.append(x_tick)
+
+    return np.array(all_y_preds), np.array(all_x_preds)
+
+
 def get_numerical_output(interest_points, closest_ticks, x_values, y_values, x_coords, y_coords):
     y_output, x_output = [], []
     for interest_point, close_tick in zip(interest_points, closest_ticks):
@@ -479,6 +515,37 @@ def get_numerical_output(interest_points, closest_ticks, x_values, y_values, x_c
         x_output.append(interest_point_x_val.item())
 
     return np.array(y_output), np.array(x_output)
+
+
+def get_numerical_output_multi_points(interest_points, x_values, y_values, x_coords, y_coords):
+    final_y_output, final_x_output = [], []
+
+    for interest_point in interest_points:
+        y_predictions, x_predictions = [], []
+
+        # Iterating through consecutive coordinates for predictions
+        for i in range(len(y_coords) - 1):
+            y_xy_1, y_xy_2 = y_coords[i], y_coords[i + 1]
+            y_vals = y_values[i:i + 2]
+            pixel_val_y = (y_vals[0] - y_vals[1]) / (y_xy_2[1] - y_xy_1[1])
+            interest_point_y_val = pixel_val_y * (y_xy_2[1] - interest_point[1]) + y_vals[1]
+            y_predictions.append(interest_point_y_val)
+
+        for i in range(len(x_coords) - 1):
+            x_xy_1, x_xy_2 = x_coords[i], x_coords[i + 1]
+            x_vals = x_values[i:i + 2]
+            pixel_val_x = (x_vals[1] - x_vals[0]) / (x_xy_2[0] - x_xy_1[0])
+            interest_point_x_val = pixel_val_x * (interest_point[0] - x_xy_1[0]) + x_vals[0]
+            x_predictions.append(interest_point_x_val)
+
+        # Calculating median of predictions for each interest_point
+        median_y_val = np.median(np.array(y_predictions))
+        median_x_val = np.median(np.array(x_predictions))
+
+        final_y_output.append(median_y_val)
+        final_x_output.append(median_x_val)
+
+    return np.array(final_y_output), np.array(final_x_output)
 
 
 def fill_non_complete_prediction(x_output, x_values, y_output, method="median"):

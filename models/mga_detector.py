@@ -8,6 +8,7 @@ from utils.yolo_tools import (tick_label2axis_label, extract_text_from_boxes, in
                               classify_bars, post_process_texts, nms_with_confs)
 import copy
 import numpy as np
+import os
 
 class GraphDetecor:
     def __init__(self, model, acc_device="cpu", ocr_mode="paddleocr", iou=0.5, conf=0.15, show_res=True,
@@ -49,17 +50,21 @@ class GraphDetecor:
         boxes = [torch.cat((result.boxes.xywh, result.boxes.cls.unsqueeze(1)), dim=1) for result in res]
         confs = [result.boxes.conf for result in res]
         imgs = [result.orig_img for result in res]
-        finsl_res = [self.reformat_boxes(box_torch, img, img_res, conf) for box_torch, img, img_res, conf
-                     in zip(boxes, imgs, res, confs)]
+        finsl_res = [self.reformat_boxes(box_torch, img, img_res, conf, img_n) for box_torch, img, img_res, conf, img_n
+                     in zip(boxes, imgs, res, confs, img_list)]
         return finsl_res, imgs
         # box_classes = ["plot", "x_tick", "y_tick", "scatter_point", "bar", "dot_point", "line_point", "tick_label"]
 
-    def reformat_boxes(self, box_torch, img, res, confs):
+    def reformat_boxes(self, box_torch, img, res, confs, img_n):
         if self.show_res:
             plt.imshow(img)
             plt.show()
             plt.imshow(res.plot(font_size=0.5, labels=False))
             plt.show()
+
+        # plt.imshow(res.plot(font_size=0.5, labels=False))
+        # plt.savefig(fr"D:\anotated_imgs\{os.path.basename(img_n.split('.')[0])}_w_dets.jpg")
+        # plt.close()
         box_torch = nms_with_confs(box_torch, confs, 0.1)
         box_torch = sort_torch_by_col(sort_torch_by_col(box_torch, 0), 4)
         box_torch_no_label = box_torch[~torch.isin(box_torch[:, 4], torch.tensor([1, 2, 7]).to(self.acc_device))]
@@ -88,8 +93,9 @@ class GraphDetecor:
             x_tick_labels[:, 0] = x_tick_labels[:, 0] + x_tick_labels[:, 2] /2
         if rot_135_x: # change tick loc if there was a rotation
             x_tick_labels[:, 0] = x_tick_labels[:, 0] - x_tick_labels[:, 2] /2
-        final_x_y_data = torch.cat([box_torch_no_label[:, :2], x_tick_labels[:, :2], y_tick_labels[:, :2]])
-        d_type = ["plot_bb"] + [idx_to_class_box[label.item()] for label in box_torch_no_label[1:, 4]] + \
+        final_x_y_data = torch.cat([box_torch_no_label[:, :4], x_tick_labels[:, :4], y_tick_labels[:, :4]])
+        d_type = [idx_to_class_box[box_torch_no_label[0,4].item()].replace("plot", "plot_bb")]\
+                 + [idx_to_class_box[label.item()] for label in box_torch_no_label[1:, 4]] + \
                  ["x_tick"]*len(x_tick_labels) + ["y_tick"]*len(y_tick_labels)
         values = [float('nan')]*len(box_torch_no_label) + x_extracted_text + y_extracted_text
         # if self.show_res:
