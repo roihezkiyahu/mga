@@ -282,9 +282,17 @@ def post_process_texts(texts):
             numeric_text = convert_texts_with_default(texts) # np.array([int(text) if "." not in text else float(text) for text in texts])
             diff_vec = numeric_text[1:] - numeric_text[:-1]
             values, counts = np.unique(diff_vec[np.isfinite(diff_vec)], return_counts=True)
+            if np.max(counts) == 1:
+                return texts
             mode_value = values[np.argmax(counts)]
-            for i in np.where(np.any([~np.isclose(diff_vec, mode_value, atol=1e-8), ~np.isfinite(diff_vec)], axis=0))[0]:
-                numeric_text[i + 1] = numeric_text[i] + mode_value
+            if not (mode_value == diff_vec)[0]:
+                for i in np.where(np.any([~np.isclose(diff_vec, mode_value, atol=1e-8), ~np.isfinite(diff_vec)],
+                                         axis=0))[0][::-1]:
+                    numeric_text[i] = numeric_text[i + 1] - mode_value
+            else:
+                for i in np.where(np.any([~np.isclose(diff_vec, mode_value, atol=1e-8), ~np.isfinite(diff_vec)],
+                                     axis=0))[0]:
+                    numeric_text[i + 1] = numeric_text[i] + mode_value
             return [str(int(text)) if float(text) == int(text) else str(text) for text in numeric_text]
     except Exception as e:
         print(e)
@@ -293,7 +301,7 @@ def post_process_texts(texts):
 
 
 def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None, processor=None, model=None,
-                            paddleocr=None, x_label=False):
+                            paddleocr=None, x_label=False, apply_rotation=True):
     """
     Extract text from given bounding boxes in an image.
 
@@ -316,7 +324,11 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
         x1, y1, x2, y2 = compute_roi_coordinates(*box)
         y1 += int((y2-y1)*0.1)
         roi = img_pil.crop((x1, y1, x2, y2))
-        roi, rotated_45, rotated_135 = rotate_and_crop(roi, x_label)
+        if apply_rotation:
+            print("applying rotation")
+            roi, rotated_45, rotated_135 = rotate_and_crop(roi, x_label)
+        else:
+            rotated_45, rotated_135 = False, False
         rotated_45_list.append(rotated_45)
         rotated_135_list.append(rotated_135)
         if mode == "easyocr":

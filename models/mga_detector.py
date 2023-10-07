@@ -11,8 +11,8 @@ import numpy as np
 import os
 
 class GraphDetecor:
-    def __init__(self, model, acc_device="cpu", ocr_mode="paddleocr", iou=0.5, conf=0.15, show_res=True,
-                 ocr_model_paths={}):
+    def __init__(self, model, acc_device="cpu", ocr_mode="paddleocr", iou=0.5, conf=0.15, show_res=False,
+                 ocr_model_paths={}, apply_nms=True, apply_osp=True, apply_rotate_ocr=True, apply_ppt=True):
         # TODO add cuda support
         if isinstance(model, str):
             self.model = YOLO(model)
@@ -25,6 +25,10 @@ class GraphDetecor:
         self.iou = iou
         self.conf = conf
         self.show_res = show_res
+        self.apply_nms = apply_nms
+        self.apply_osp = apply_osp
+        self.apply_rotate_ocr = apply_rotate_ocr
+        self.apply_ppt = apply_ppt
 
     @staticmethod
     def get_graph_type(finsl_res, img=None):
@@ -65,33 +69,71 @@ class GraphDetecor:
         # plt.imshow(res.plot(font_size=0.5, labels=False))
         # plt.savefig(fr"D:\anotated_imgs\{os.path.basename(img_n.split('.')[0])}_w_dets.jpg")
         # plt.close()
-        box_torch = nms_with_confs(box_torch, confs, 0.1)
+        #
+        # # delte
+        # final_x_y_data_ext = torch.cat([box_torch[:, :5], box_torch[:, :5], box_torch[:, :5]])
+        # plot_image_with_boxes(img, [dict(zip(["x", "y", "width", "height", "class"], box.astype(int))) for box in
+        #                             final_x_y_data_ext.numpy()], False,
+        #                       fr"D:\anotated_imgs\{os.path.basename(img_n.split('.')[0])}_org_boxes.jpg")
+        if self.apply_nms:
+            print("applying nms")
+            box_torch = nms_with_confs(box_torch, confs, 0.1)
+
+        # delte
+        # final_x_y_data_ext = torch.cat([box_torch[:, :5], box_torch[:, :5], box_torch[:, :5]])
+        # plot_image_with_boxes(img, [dict(zip(["x", "y", "width", "height", "class"], box.astype(int))) for box in
+        #                             final_x_y_data_ext.numpy()], False,
+        #                       fr"D:\anotated_imgs\{os.path.basename(img_n.split('.')[0])}_post_nms.jpg")
+
+
         box_torch = sort_torch_by_col(sort_torch_by_col(box_torch, 0), 4)
         box_torch_no_label = box_torch[~torch.isin(box_torch[:, 4], torch.tensor([1, 2, 7]).to(self.acc_device))]
-        if box_torch_no_label[0, 4] == 0:
-            condition1 = box_torch_no_label[:, 0] <= box_torch_no_label[0, 0] + box_torch_no_label[0, 2] / 2 + 5
-            condition2 = box_torch_no_label[:, 1] >= box_torch_no_label[0, 1] - box_torch_no_label[0, 3] / 2 - 5
-            condition3 = box_torch_no_label[:, 1] <= box_torch_no_label[0, 1] + box_torch_no_label[0, 3] / 2 + 5
-            condition4 = torch.logical_or(box_torch_no_label[:, 0] >= box_torch_no_label[0, 0] -
-                                          box_torch_no_label[0, 2] / 2 - 5, box_torch_no_label[:, 4] != 3)
+        if self.apply_osp:
+            print("applying osp")
+            if box_torch_no_label[0, 4] == 0:
+                condition1 = box_torch_no_label[:, 0] <= box_torch_no_label[0, 0] + box_torch_no_label[0, 2] / 2 + 5
+                condition2 = box_torch_no_label[:, 1] >= box_torch_no_label[0, 1] - box_torch_no_label[0, 3] / 2 - 5
+                condition3 = box_torch_no_label[:, 1] <= box_torch_no_label[0, 1] + box_torch_no_label[0, 3] / 2 + 5
+                condition4 = torch.logical_or(box_torch_no_label[:, 0] >= box_torch_no_label[0, 0] -
+                                              box_torch_no_label[0, 2] / 2 - 5, box_torch_no_label[:, 4] != 3)
 
-            box_torch_no_label = box_torch_no_label[torch.logical_and(torch.logical_and(condition1, condition2),
-                                                                      torch.logical_and(condition3, condition4))]
+                box_torch_no_label = box_torch_no_label[torch.logical_and(torch.logical_and(condition1, condition2),
+                                                                          torch.logical_and(condition3, condition4))]
         box_torch_no_label = torch.cat([box_torch_no_label[0,:].unsqueeze(0),
                                         sort_torch_by_col(box_torch_no_label[1:,:], 0)])
+
+        # delte
+        # final_x_y_data_ext = torch.cat([box_torch_no_label[:, :5], box_torch_no_label[:, :5], box_torch_no_label[:, :5]])
+        # plot_image_with_boxes(img, [dict(zip(["x", "y", "width", "height", "class"], box.astype(int))) for box in
+        #                             final_x_y_data_ext.numpy()], False,
+        #                       fr"D:\anotated_imgs\{os.path.basename(img_n.split('.')[0])}_post_nms_post_outside.jpg")
+
         x_tick_labels, y_tick_labels = tick_label2axis_label(box_torch)
+
+        # delte
+        # y_tick_labels_plt = y_tick_labels.clone()
+        # y_tick_labels_plt[:, 4] = 5
+        # final_x_y_data_ext = torch.cat([box_torch_no_label, box_torch_no_label, box_torch_no_label, x_tick_labels, y_tick_labels_plt])
+        # plot_image_with_boxes(img, [dict(zip(["x", "y", "width", "height", "class"], box.astype(int))) for box in
+        #                             final_x_y_data_ext.numpy()], False,
+        #                       fr"D:\anotated_imgs\{os.path.basename(img_n.split('.')[0])}_post_nms_post_outside_tick_labels.jpg")
+
+
         y_tick_labels = sort_torch_by_col(y_tick_labels, 1)
         x_extracted_text, rot_45_x, rot_135_x = extract_text_from_boxes(img, x_tick_labels[:, :4], self.ocr_mode,
                                                                     self.acc_device =="cuda", *self.ocr_models,
-                                                                        x_label=True)
+                                                                        x_label=True,
+                                                                        apply_rotation=self.apply_rotate_ocr)
         y_extracted_text, rot_45_y, rot_135_y = extract_text_from_boxes(img, y_tick_labels[:, :4], self.ocr_mode,
-                                                                    self.acc_device =="cuda", *self.ocr_models)
-
-        x_extracted_text = post_process_texts(x_extracted_text)
-        y_extracted_text = post_process_texts(y_extracted_text)
-        if rot_45_x: # change tick loc if there was a rotation
+                                                                    self.acc_device =="cuda", *self.ocr_models,
+                                                                        apply_rotation=self.apply_rotate_ocr)
+        if self.apply_ppt:
+            print("applying ppt")
+            x_extracted_text = post_process_texts(x_extracted_text)
+            y_extracted_text = post_process_texts(y_extracted_text)
+        if rot_45_x:# change tick loc if there was a rotation
             x_tick_labels[:, 0] = x_tick_labels[:, 0] + x_tick_labels[:, 2] /2
-        if rot_135_x: # change tick loc if there was a rotation
+        if rot_135_x:# change tick loc if there was a rotation
             x_tick_labels[:, 0] = x_tick_labels[:, 0] - x_tick_labels[:, 2] /2
         final_x_y_data = torch.cat([box_torch_no_label[:, :4], x_tick_labels[:, :4], y_tick_labels[:, :4]])
         d_type = [idx_to_class_box[box_torch_no_label[0,4].item()].replace("plot", "plot_bb")]\

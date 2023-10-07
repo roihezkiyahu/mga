@@ -192,6 +192,7 @@ def set_ax_loc_rotate(ax, rotate, long=False):
         rand_noise_x = np.random.uniform(0.1, 0.2)
         ax.set_position([0.3 + rand_noise_x, rand_noise_y, 0.65 - rand_noise_x, 1 - rand_noise_y * 2])
 
+
 def default_serialize(obj):
     """Default JSON serializer."""
     if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,

@@ -19,6 +19,30 @@ plt.ticklabel_format(style='plain')
 def generate_line_chart(x, y, line_color='blue', grid_style="both", x_title=None, y_title=None, graph_title=None,
                         theme="default", line_style='-', marker_style=None, figsize=(6, 4), name=None,
                         rotate=False, show=True, cont=False):
+    """
+    Generates a line chart using matplotlib, with options for customization.
+
+    Args:
+        x (array-like): The x-coordinates of the data points.
+        y (array-like): The y-coordinates of the data points.
+        line_color (str, optional): The color of the line. Defaults to 'blue'.
+        grid_style (str, optional): The style of grid to use. Options are "both", "x", "y", or "none". Defaults to "both".
+        x_title (str, optional): The title of the x-axis. Defaults to None.
+        y_title (str, optional): The title of the y-axis. Defaults to None.
+        graph_title (str, optional): The title of the graph. Defaults to None.
+        theme (str, optional): The theme to apply to the chart. Defaults to 'default'.
+        line_style (str, optional): The style of the line. Defaults to '-'.
+        marker_style (str, optional): The style of the markers. Defaults to None.
+        figsize (tuple, optional): The size of the figure. Defaults to (6, 4).
+        name (str, optional): The name to save the figure as. Defaults to None.
+        rotate (bool, optional): Whether to rotate x-axis labels. Defaults to False.
+        show (bool, optional): Whether to show the plot. Defaults to True.
+        cont (bool, optional): Whether to generate a continuous line plot. Defaults to False.
+
+    Returns:
+        tuple: A tuple containing a dictionary with data information and the name of the saved file.
+
+    """
     set_style(theme)
     fig, ax = plt.subplots(figsize=figsize)
     set_grid(grid_style, ax)
@@ -78,6 +102,22 @@ def generate_line_chart(x, y, line_color='blue', grid_style="both", x_title=None
 
 
 def random_generate_line_chart(x, y, x_title=None, y_title=None, graph_title=None, name=None, show=True, cont=False):
+    """
+    Generates a line chart with random visual parameters.
+
+    Args:
+        x (array-like): Array-like object containing the x-values.
+        y (array-like): Array-like object containing the y-values.
+        x_title (str, optional): Title for the x-axis. Defaults to None.
+        y_title (str, optional): Title for the y-axis. Defaults to None.
+        graph_title (str, optional): Title for the graph. Defaults to None.
+        name (str, optional): Name for the saved file. Defaults to None.
+        show (bool, optional): Whether to display the generated graph. Defaults to True.
+        cont (bool, optional): Whether to convert to continus data. Defaults to False.
+
+    Returns:
+        tuple: A tuple containing the data dictionary and the final file name.
+    """
     color_palette = ['blue', 'red', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta', 'brown', 'pink', "black"]
     grid_style_choices = ["both", "x", "y", "none"]
     theme_choices = ['dark_background', 'default', 'grayscale', 'dark_gray']
@@ -121,6 +161,28 @@ def random_generate_line_chart(x, y, x_title=None, y_title=None, graph_title=Non
 def generate_scatter_chart(x, y, color='blue', grid_style="both", theme="white", show_regression_line=False,
                            x_title=None, y_title=None, graph_title=None, figsize=(6, 4), name=None, show=True,
                            change_background_prob=0.1):
+    """
+    Generates a scatter chart with given parameters.
+
+    Args:
+        x (array-like): Array-like object containing the x-values.
+        y (array-like): Array-like object containing the y-values.
+        color (str, optional): Color for the scatter points. Defaults to 'blue'.
+        grid_style (str, optional): Grid style for the graph. Defaults to 'both'.
+        theme (str, optional): Theme for the graph. Defaults to 'white'.
+        show_regression_line (bool, optional): Whether to show the regression line. Defaults to False.
+        x_title (str, optional): Title for the x-axis. Defaults to None.
+        y_title (str, optional): Title for the y-axis. Defaults to None.
+        graph_title (str, optional): Title for the graph. Defaults to None.
+        figsize (tuple, optional): Figure size for the graph. Defaults to (6, 4).
+        name (str, optional): Name for the saved file. Defaults to None.
+        show (bool, optional): Whether to display the generated graph. Defaults to True.
+        change_background_prob (float, optional): Probability to change the background color. Defaults to 0.1.
+
+    Returns:
+        tuple: A tuple containing the data dictionary and the final file name.
+    """
+
     set_style(theme)
     fig, ax = plt.subplots(figsize=figsize)
 
@@ -157,6 +219,21 @@ def generate_scatter_chart(x, y, color='blue', grid_style="both", theme="white",
 
 
 def random_generate_scatter_chart(x, y, x_title=None, y_title=None, graph_title=None, name=None, show=True):
+    """
+    Generates a scatter chart with random visual parameters.
+
+    Args:
+        x (array-like): Array-like object containing the x-values.
+        y (array-like): Array-like object containing the y-values.
+        x_title (str, optional): Title for the x-axis. Defaults to None.
+        y_title (str, optional): Title for the y-axis. Defaults to None.
+        graph_title (str, optional): Title for the graph. Defaults to None.
+        name (str, optional): Name for the saved file. Defaults to None.
+        show (bool, optional): Whether to display the generated graph. Defaults to True.
+
+    Returns:
+        tuple: A tuple containing the data dictionary and the final file name.
+    """
     color_palette = ['blue', 'red', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta', 'brown', 'pink', "black"]
     color = random.choice(color_palette)
     grid_style = np.random.choice(["both", "x", "y", "none"], p=[0.1, 0.1, 0.1, 0.7])
@@ -177,6 +254,28 @@ def random_generate_scatter_chart(x, y, x_title=None, y_title=None, graph_title=
 def generate_bar_chart(categories, values, color='blue', grid_style="both", theme="default", orientation="vertical",
                        x_title=None, y_title=None, graph_title=None, figsize=(6, 4), name=None, rotate=False,
                        show=True, long=False):
+    """
+    Generates a bar chart with given parameters.
+
+    Args:
+        categories (array-like): Array-like object containing the categories.
+        values (array-like): Array-like object containing the values for each category.
+        color (str, optional): Color for the bars. Defaults to 'blue'.
+        grid_style (str, optional): Grid style for the graph. Defaults to 'both'.
+        theme (str, optional): Theme for the graph. Defaults to 'default'.
+        orientation (str, optional): Orientation of the bars ("vertical" or "horizontal"). Defaults to "vertical".
+        x_title (str, optional): Title for the x-axis. Defaults to None.
+        y_title (str, optional): Title for the y-axis. Defaults to None.
+        graph_title (str, optional): Title for the graph. Defaults to None.
+        figsize (tuple, optional): Figure size for the graph. Defaults to (6, 4).
+        name (str, optional): Name for the saved file. Defaults to None.
+        rotate (bool, optional): Whether to rotate the category labels. Defaults to False.
+        show (bool, optional): Whether to display the generated graph. Defaults to True.
+        long (bool, optional): Whether the chart is long or not. Defaults to False.
+
+    Returns:
+        tuple: A tuple containing the data dictionary and the final file name.
+    """
     set_style(theme)
     fig, ax = plt.subplots()
     set_grid(grid_style, ax)
@@ -222,6 +321,23 @@ def generate_bar_chart(categories, values, color='blue', grid_style="both", them
 
 def random_generate_bar_chart(categories, values, x_title=None, y_title=None, graph_title=None, name=None, show=True,
                               horizontal_prob=0.25, long=False):
+    """
+    Generates a bar chart with random visual parameters.
+
+    Args:
+        categories (array-like): Array-like object containing the categories.
+        values (array-like): Array-like object containing the values for each category.
+        x_title (str, optional): Title for the x-axis. Defaults to None.
+        y_title (str, optional): Title for the y-axis. Defaults to None.
+        graph_title (str, optional): Title for the graph. Defaults to None.
+        name (str, optional): Name for the saved file. Defaults to None.
+        show (bool, optional): Whether to display the generated graph. Defaults to True.
+        horizontal_prob (float, optional): Probability to make the chart horizontal. Defaults to 0.25.
+        long (bool, optional): Whether the chart is has long text or not. Defaults to False.
+
+    Returns:
+        tuple: A tuple containing the data dictionary and the final file name or an empty dictionary and "img" string.
+    """
     color_palette = ['blue', 'red', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta', 'brown', 'pink', "black"]
     color = random.choice(color_palette)
     grid_style = np.random.choice(["both", "x", "y", "none"], p=[0.1, 0.1, 0.1, 0.7])
@@ -268,7 +384,20 @@ def random_generate_bar_chart(categories, values, x_title=None, y_title=None, gr
 
 def dotplot(xs, ys, ax, fig, ylim, step, show=True, **args):
     """
-    Function that creates dot plots.
+    Creates dot plots on a given axis.
+
+    Args:
+        xs (array-like): The x-values for the dot plot.
+        ys (array-like): The y-values for the dot plot.
+        ax (matplotlib.axis): The axis on which to plot.
+        fig (matplotlib.figure): The figure of the plot.
+        ylim (list): The y-axis limits in the format [ymin, ymax].
+        step (int): The step size for the y-values.
+        show (bool, optional): Whether to display the plot. Defaults to True.
+        **args: Additional keyword arguments to be passed to the scatter function.
+
+    Returns:
+        list: The y-values of the scatter plot.
     """
     fig_size = fig.get_size_inches()
     scatter_x = []  # x values
@@ -315,6 +444,22 @@ def generate_dot_plot(x, y, color='blue', grid_style="both", theme="white", figs
 
 
 def random_generate_dot_plot(x, y, x_title=None, y_title=None, graph_title=None, name=None, show=True):
+    """
+    Generates a dot plot with random visual parameters and returns the data dictionary and final name.
+
+    Args:
+        x (array-like): The x-values for the dot plot.
+        y (array-like): The y-values for the dot plot.
+        x_title (str, optional): Title for the x-axis. Defaults to None.
+        y_title (str, optional): Title for the y-axis. Defaults to None.
+        graph_title (str, optional): Main title for the graph. Defaults to None.
+        name (str, optional): Name for saving the graph. Defaults to None.
+        show (bool, optional): Whether to display the plot. Defaults to True.
+
+    Returns:
+        dict: Data dictionary containing information about the plot.
+        str: The final name of the saved plot.
+    """
     color_palette = ['blue', 'red', 'green', 'yellow', 'purple', 'orange', 'cyan', 'magenta', 'brown', 'pink', "black"]
     color = random.choice(color_palette)
     grid_style = random.choice(["y", "none"])
@@ -344,7 +489,16 @@ def random_generate_dot_plot(x, y, x_title=None, y_title=None, graph_title=None,
     return {}, ""
 
 
-def gen_all_4(save_loc = r"D:\mga_outputs"):
+def gen_all_4(save_loc=r"D:\mga_outputs"):
+    """
+    Generates the four types of charts and saves them to the specified location.
+
+    Args:
+        save_loc (str, optional): The location where the generated charts will be saved. Defaults to "D:\mga_outputs".
+
+    Returns:
+        None
+    """
     data_dict, final_name = random_generate_line_chart(np.linspace(0, 100, 10).astype(int), np.sin(np.linspace(0, 10, 10)),
                                                        name=os.path.join(save_loc, "line"),
                                                        x_title="x_title", y_title="y_title", graph_title="graph_title")
@@ -372,12 +526,32 @@ def gen_all_4(save_loc = r"D:\mga_outputs"):
 
 
 def choose_randomly(val1, val2):
+    """
+    Chooses a value randomly from the two provided values.
+
+    Args:
+        val1 (Any): The first value.
+        val2 (Any): The second value.
+
+    Returns:
+        Any: One of the two values, chosen randomly.
+    """
     if val1 is not None and val2 is not None:
         return random.choice([val1, val2])
     return val1 or val2
 
 
 def merge_rows(row_x, row_y):
+    """
+    Merges two rows and returns a new dictionary with merged graph titles, x titles, and y titles.
+
+    Args:
+        row_x (dict): The first row containing title information.
+        row_y (dict): The second row containing title information.
+
+    Returns:
+        dict: A new dictionary with merged data.
+    """
     new_dict = {
         'graph_title': choose_randomly(row_x['text'].get('graph_title'), row_y['text'].get('graph_title')),
         'x_title': choose_randomly(row_x['text'].get('x_title'), row_y['text'].get('x_title')),
@@ -388,6 +562,18 @@ def merge_rows(row_x, row_y):
 
 
 def generate_dynamic_data_point(df, rand_subset=5):
+    """
+    Generates dynamic data points from a given dataframe by sampling two rows and combining them.
+
+    Args:
+        df (pd.DataFrame): The dataframe from which to sample data points.
+        rand_subset (int, optional): The maximum subset size for random sampling. Defaults to 5.
+
+    Returns:
+        list: List of x-values after sampling.
+        list: List of y-values after sampling.
+        dict: Dictionary containing merged titles for the graph, x-axis, and y-axis.
+    """
     row_x = df.sample(n=1).iloc[0]
     row_y = df.sample(n=1).iloc[0]
     x_values = row_x['x']
@@ -412,6 +598,15 @@ def generate_dynamic_data_point(df, rand_subset=5):
 
 
 def preprocess_data_series(data_series):
+    """
+    Preprocesses a data series by extracting and processing the data series column of the competetion.
+
+    Args:
+        data_series (pd.DataFrame): The dataframe containing the data series.
+
+    Returns:
+        pd.DataFrame: The preprocessed dataframe with additional columns for x-values, y-values, and text.
+    """
     data_series['data-series'] = data_series['data-series'].apply(safe_literal_eval)
     if "Unnamed: 2" in data_series.columns:
         data_series["Unnamed: 2"] = data_series["Unnamed: 2"].apply(safe_literal_eval)
@@ -426,6 +621,16 @@ def preprocess_data_series(data_series):
 
 
 def create_long_y_df(data_series, include_titles=True):
+    """
+      Creates a dataframe of long y-values from a given data series.
+
+      Args:
+          data_series (pd.DataFrame): The dataframe containing the data series.
+          include_titles (bool, optional): Whether to include titles in the long y-values. Defaults to True.
+
+      Returns:
+          list: List of long strings combining x-values, y-values, and titles (if included).
+      """
     all_xes = set(chain.from_iterable(data_series["x"].to_list()))
     all_xes_str = {x for x in all_xes if not is_numeric(x)}
     sorted_all_xes_str = sorted(all_xes_str, key=len)[-300:]
@@ -445,6 +650,19 @@ def create_long_y_df(data_series, include_titles=True):
 
 
 def postprocess_data_gen(data_dict, final_name, data_list, only_plot_area=False):
+    """
+    Post-processes the generated data by appending it to a list and creating annotations.
+
+    Args:
+        data_dict (dict): The dictionary containing information about the plot.
+        final_name (str): The final name of the saved plot.
+        data_list (list): List of data dictionaries.
+        only_plot_area (bool, optional): If set to True, only the plot area will be annotated. Defaults to False.
+
+    Returns:
+        dict: The updated data dictionary.
+        list: The updated list of data dictionaries.
+    """
     data_dict["name"] = os.path.basename(final_name)
     data_list = np.append(data_list, data_dict)
     annotation_to_labels(os.path.join(generated_imgs, f"{final_name}.jpg"),
@@ -454,6 +672,20 @@ def postprocess_data_gen(data_dict, final_name, data_list, only_plot_area=False)
 
 def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat", "dot", "bar"], show=False,
                      clear_list=False):
+    """
+    Generate 'n' plots of specified data types and save them in the provided directory.
+
+    Args:
+        data_series (pd.DataFrame): The dataframe containing the data series.
+        generated_imgs (str): Directory to save the generated images.
+        n (int, optional): Number of plots to generate. Defaults to 2.
+        data_types (list, optional): Types of data plots to generate. Defaults to ["line", "scat", "dot", "bar"].
+        show (bool, optional): Whether to display the plot. Defaults to False.
+        clear_list (bool, optional): Whether to clear the data list after processing. Defaults to False.
+
+    Returns:
+        np.array: Array containing dictionaries of generated data plots.
+    """
     os.makedirs(generated_imgs, exist_ok=True)
     data_list = np.array([])
     for i in tqdm(range(n)):
@@ -526,6 +758,20 @@ def generate_n_plots(data_series, generated_imgs, n=2, data_types=["line", "scat
 
 def generate_cont_lines(data_series, generated_imgs, n=2, data_types=["line"], show=False,
                      clear_list=False):
+    """
+    Generate 'n' continuous line plots and save them in the provided directory.
+
+    Args:
+        data_series (pd.DataFrame): The dataframe containing the data series.
+        generated_imgs (str): Directory to save the generated images.
+        n (int, optional): Number of plots to generate. Defaults to 2.
+        data_types (list, optional): Types of data plots to generate. Defaults to ["line"].
+        show (bool, optional): Whether to display the plot. Defaults to False.
+        clear_list (bool, optional): Whether to clear the data list after processing. Defaults to False.
+
+    Returns:
+        np.array: Array containing dictionaries of generated data plots.
+    """
     os.makedirs(generated_imgs, exist_ok=True)
     data_list = np.array([])
     for i in tqdm(range(n)):
@@ -558,6 +804,19 @@ def generate_cont_lines(data_series, generated_imgs, n=2, data_types=["line"], s
 
 
 def generate_n_long_plots(data_series, generated_imgs, n=2, data_types=["bar"], show=False):
+    """
+    Generate 'n' plots with long x-axis values and save them in the provided directory.
+
+    Args:
+        data_series (pd.DataFrame): The dataframe containing the data series.
+        generated_imgs (str): Directory to save the generated images.
+        n (int, optional): Number of plots to generate. Defaults to 2.
+        data_types (list, optional): Types of data plots to generate. Defaults to ["bar"].
+        show (bool, optional): Whether to display the plot. Defaults to False.
+
+    Returns:
+        np.array: Array containing dictionaries of generated data plots.
+    """
     os.makedirs(generated_imgs, exist_ok=True)
     data_list = np.array([])
     long_strings = list(create_long_y_df(data_series))
@@ -591,6 +850,17 @@ def generate_n_long_plots(data_series, generated_imgs, n=2, data_types=["bar"], 
 
 
 def generate_random_bg_plot(x_title=None, y_title=None, graph_title=None, name="", show=False, folder=""):
+    """
+    Generate a random background plot with optional titles and save in the provided directory.
+
+    Args:
+        x_title (str, optional): Title for the x-axis. Defaults to None.
+        y_title (str, optional): Title for the y-axis. Defaults to None.
+        graph_title (str, optional): Main title for the graph. Defaults to None.
+        name (str, optional): Name for the saved plot. Defaults to "".
+        show (bool, optional): Whether to display the plot. Defaults to False.
+        folder (str, optional): Directory to save the generated image. Defaults to "".
+    """
     if folder != "":
         os.makedirs(folder, exist_ok=True)
     figsize_w = random.randint(4, 13)
@@ -615,7 +885,7 @@ def generate_random_bg_plot(x_title=None, y_title=None, graph_title=None, name="
         plt.show()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__": # example for runs
     data_series_path = r"D:\MGA\data_series.csv"
     data_series = preprocess_data_series(pd.read_csv(data_series_path))
     generated_imgs = r"D:\MGA\gen_charts_new_line_cont"

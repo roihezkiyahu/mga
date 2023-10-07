@@ -234,8 +234,8 @@ class MGAPredictor:
             self.classifier.eval()
             graph_class_classifier = self.classifier(img_p.unsqueeze(0))
             graph_class_classifier = indx_2_chart_label[torch.argmax(graph_class_classifier).item()]
-            if "bar" not in graph_class_classifier and self.classifier_method == "comb":
-                return graph_type, graph_class
+            # if "bar" not in graph_class_classifier and self.classifier_method == "comb":
+            #     return graph_type, graph_class
             return graph_class2type(graph_class_classifier), graph_class_classifier
 
     @staticmethod
@@ -318,48 +318,61 @@ class MGAPredictor:
 
 if __name__ == "__main__":
     yolo_path = r"C:\Users\Nir\PycharmProjects\mga\weights\detector\img640_batch_32_lr1e4_iou5_bg6000_aug60k_cont_long.pt"
+    # yolo_path = r"C:\Users\Nir\PycharmProjects\mga\weights\detector\img640_batch_32_lr1e4.pt"
     acc_device = "cuda" if torch.cuda.is_available() else "cpu"
     ocr_mode = "paddleocr"
     annot_folder = r"D:\train\annotations"
-    res_foldr = r"G:\My Drive\MGA\img_res_classifier_extracted" #r"D:\MGA\img_res"
+    res_foldr = r"G:\My Drive\MGA\img_res_classifier_extracted_610" #r"D:\MGA\img_res"
     os.makedirs(res_foldr, exist_ok=True)
     imgs_dir = "D:\MGA\sorted_images\extracted"
     # imgs_dir = r"G:\My Drive\MGA\zero_score_exctracted"
     non_imgs_zero = [file.split("_")[0] for file in os.listdir(r"G:\My Drive\MGA\img_res_aug_detector_extracted") if
                  not (file.endswith("_0.csv") or file.endswith("_gt.csv"))]
     yolo_model = MGAPredictor(yolo_path, acc_device, ocr_mode, iou=0.5)
-    overwrite = False
+    overwrite = True
     save_res = True
     imgs_paths_0 = [
         # r"D:\MGA\sorted_images\dot\00b1597b6970.jpg"
+        # r"D:\train\images\c26b139f37a1.jpg",
+        # r"D:\train\images\b8990ef6a487.jpg",
+        # r"D:\train\images\722ecbeeec0e.jpg",
+        #
+        # r"D:\train\images\0a2a659c989b.jpg",
+        # r"D:\train\images\1a612638c6c7.jpg",
+        # # #
+        # r"D:\train\images\2c1f66f6774a.jpg",
+        # r"D:\train\images\2d9d8007f917.jpg",
+        # r"D:\train\images\2e2bdfc9c7d7.jpg",
+        #
+        # r"D:\train\images\3ec5332795c8.jpg",
+        # r"D:\train\images\4c34d3420ad3.jpg",
+        #
+        # r"D:\train\images\4d6d80aed4b7.jpg",
+        # r"D:\train\images\5a9c97192ea6.jpg",
+        # r"D:\train\images\5cad47641ecc.jpg",
+        # r"D:\train\images\6ae8e07ad873.jpg",
+        # r"D:\train\images\8e71f5f4f2d2.jpg",
+        # r"D:\train\images\9b62dbdded7b.jpg",
+        # r"D:\train\images\9d7688ae52b6.jpg",
+        # r"D:\train\images\32ae225ae9ca.jpg",
+        # r"D:\train\images\a53c11d698b1.jpg",
+        # r"D:\train\images\a220384396b6.jpg",
+        # r"D:\train\images\bea7273e8cfb.jpg",
+        # r"D:\train\images\c1110ef45d58.jpg",
+        # r"D:\train\images\0ddf602b3301.jpg",
+        # r"D:\train\images\4c34d3420ad3.jpg",
+        # r"D:\train\images\88f835cc12db.jpg",
         # r"D:\train\images\1aff82c28773.jpg",
         # r"D:\train\images\1f7d3d05c3fb.jpg",
-        # #
         # r"D:\train\images\2422e5123077.jpg",
         # r"D:\train\images\954882c89e1e.jpg",
-        r"D:\train\images\996fc1c90e80.jpg",
-
         # r"D:\train\images\b59a1e7907e1.jpg",
-        # r"D:\train\images\01850b694f00.jpg",
-
-        # r"D:\MGA\sorted_images\line\00a68f5c2a93.jpg",
-        # r"D:\MGA\sorted_images\line\02a23ca8f04b.jpg",
-        # r"D:\MGA\sorted_images\line\029eb96f26d9.jpg",
-        # r"D:\MGA\sorted_images\scatter\029d1a7e17d2.jpg",
-        # r"D:\MGA\sorted_images\horizontal_bar\1bd01b1c40d8.jpg",
-        # r"D:\MGA\sorted_images\vertical_bar\0ace695dea6b.jpg",
-        # r"D:\MGA\sorted_images\vertical_bar\029867ef63f2.jpg",
-        # r"D:\MGA\sorted_images\dot\00ae5cc822f0.jpg",
-        # r"D:\MGA\sorted_images\vertical_bar\0ad4f865ce03.jpg",
-        # r"D:\MGA\sorted_images\dot\00b1597b6970.jpg",
-        # r"D:\MGA\sorted_images\scatter\00ade5dc4f7a.jpg",
-        # r"D:\MGA\sorted_images\scatter\1a3d883bf388.jpg"
                   ]
 
     res_files = [file.split("_")[0] for file in os.listdir(res_foldr)]
     imgs_paths = [os.path.join(imgs_dir, img) for img in os.listdir(imgs_dir)
                                  if img.split(".")[0] not in outlier_images and img.endswith(".jpg") ]
-    for img_path in imgs_paths_0:
+    for img_path in imgs_paths_0+ imgs_paths:
         try:
             img_name = os.path.basename(img_path).split(".")[0]
             if not overwrite:
