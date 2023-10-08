@@ -328,6 +328,7 @@ def extract_text_from_boxes(img, boxes, mode="tesseract", gpu=False, reader=None
             print("applying rotation")
             roi, rotated_45, rotated_135 = rotate_and_crop(roi, x_label)
         else:
+            roi = np.array(roi)
             rotated_45, rotated_135 = False, False
         rotated_45_list.append(rotated_45)
         rotated_135_list.append(rotated_135)

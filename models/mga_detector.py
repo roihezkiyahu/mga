@@ -12,7 +12,7 @@ import os
 
 class GraphDetecor:
     def __init__(self, model, acc_device="cpu", ocr_mode="paddleocr", iou=0.5, conf=0.15, show_res=False,
-                 ocr_model_paths={}, apply_nms=True, apply_osp=True, apply_rotate_ocr=True, apply_ppt=True):
+                 ocr_model_paths={}, apply_nms=True, apply_osp=True, apply_rotate_ocr=False, apply_ppt=True):
         # TODO add cuda support
         if isinstance(model, str):
             self.model = YOLO(model)
