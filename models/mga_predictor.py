@@ -11,7 +11,8 @@ from PIL import Image
 
 from data.global_data import class_box_to_idx, outlier_images
 from utils.yolo_tools import (ticks_to_numeric, find_closest_ticks, get_ip_data,
-                              get_categorical_output, fill_non_complete_prediction, get_numerical_output)
+                              get_categorical_output, fill_non_complete_prediction, get_numerical_output,
+                              get_categorical_output_multi_points, get_numerical_output_multi_points)
 
 from utils.util_funcs import (is_numeric, find_duplicate_indices, lowercase_except_first_letter, sort_torch_by_col,
                               graph_class2type, save_bentech_res, replace_infinite)
@@ -24,7 +25,7 @@ from data.global_data import indx_2_chart_label
 class MGAPredictor:
     def __init__(self, model, acc_device="cpu", ocr_mode="trocr", classifier_method="comb",
                  classifier_path=r"..\weights\classifier\resnet_34_999.pth", ocr_model_paths={},
-                 iou=0.5, conf=0.05):
+                 iou=0.5, conf=0.15, apply_dnal=False, multi_points=True, dist_drop_dups=True):
         self.yolo_model = GraphDetecor(model, acc_device, ocr_mode, ocr_model_paths=ocr_model_paths,
                                        iou=iou, conf=conf)
         self.classifier_method = classifier_method
@@ -32,6 +33,9 @@ class MGAPredictor:
             model = GraphClassifier(num_classes=5, resnet_model=34)
             model.load_state_dict(torch.load(classifier_path))
             self.classifier = model
+        self.apply_dnal = apply_dnal
+        self.multi_points = multi_points
+        self.dist_drop_dups = dist_drop_dups
 
 
     @staticmethod
@@ -41,15 +45,15 @@ class MGAPredictor:
         return np.argsort(x_output)
 
     @staticmethod
-    def drop_dups(x_output, y_output, x_values, y_values, horizontal=False):
+    def drop_dups(x_output, y_output, x_values, y_values, horizontal=False, distances=None):
         if not horizontal:
-            dups = find_duplicate_indices(x_output)
+            dups = find_duplicate_indices(x_output, distances)
             if dups and len(x_output) > len(x_values):
                 valid_indices = np.array([i for i in range(len(x_output)) if i not in dups])
                 x_output, y_output = x_output[valid_indices], y_output[valid_indices]
             return x_output, y_output
 
-        dups = find_duplicate_indices(y_output)
+        dups = find_duplicate_indices(y_output, distances)
         if dups and len(y_output) > len(y_values):
             valid_indices = np.array([i for i in range(len(y_output)) if i not in dups])
             x_output, y_output = x_output[valid_indices], y_output[valid_indices]
@@ -73,20 +77,45 @@ class MGAPredictor:
     def validate_xy_values(x_values, y_values, cat=True):
         if not len(y_values) + len(x_values):
             if cat:
-                return False, ["abc", "def"], [0, 1]
+                return False, ["a", "b"], [0, 1]
             else:
                 return False, [0, 1], [0, 1]
         if not len(y_values):
             return False, x_values, [0]*len(x_values)
         if not len(x_values):
             if cat:
-                return False, ["abc"]*len(y_values), y_values
+                return False, [""]*len(y_values), y_values
             else:
                 return False, [0] * len(y_values), y_values
         return True, [], []
 
     @staticmethod
-    def postprocess_cat(finsl_res, graph_type, horizontal=False):
+    def drop_not_above_label(interest_points, closest_ticks, x_coords, y_coords, horizontal):
+        valids = []
+        if not horizontal:
+            for interest_point in interest_points:
+                min_location = torch.min(np.abs(interest_point[0] - x_coords[:, 0]))
+                valid_location = min_location < torch.median(interest_points[:, 2])
+                valids.append(valid_location.item())
+        else:
+            for interest_point in interest_points:
+                min_location = torch.min(np.abs(interest_point[1] - y_coords[:, 1]))
+                valid_location = min_location < torch.median(interest_points[:, 3])
+                valids.append(valid_location.item())
+        return interest_points[valids], [c_tick for c_tick, val in zip(closest_ticks, valids) if val]
+
+    @staticmethod
+    def get_dist_2_c_tick(interest_points, closest_ticks, x_coords, y_coords, horizontal):
+        c_ticks = [c_ticks[0].item() if not horizontal else c_ticks[1].item() for c_ticks in closest_ticks]
+        if not horizontal:
+            distances = torch.abs(interest_points[:, 0] - x_coords[c_ticks, 0])
+        else:
+            distances = torch.abs(interest_points[:, 1] - y_coords[c_ticks, 1])
+        return distances
+
+    @staticmethod
+    def postprocess_cat(finsl_res, graph_type, horizontal=False, apply_dnal=True, multi_points=False,
+                        dist_drop_dups=False):
         x_y, labels, values = ticks_to_numeric(finsl_res, ["y_ticks"] if not horizontal else ["x_ticks"])
         closest_ticks, x_ticks_xy, y_ticks_xy = find_closest_ticks(x_y, labels, graph_type, 1 if not horizontal else 2,
                                                  1 if graph_type == 'dot_point' or horizontal else 2)
@@ -97,13 +126,24 @@ class MGAPredictor:
             interest_points, closest_ticks = interest_points[y_order, :], [closest_ticks[place] for place in y_order]
         interest_points, closest_ticks = interest_points[logic_vec], [c_tick for c_tick, val in zip(closest_ticks,
                                                                                                     logic_vec) if val]
+        if apply_dnal:
+            interest_points, closest_ticks = MGAPredictor.drop_not_above_label(interest_points, closest_ticks,
+                                                                           x_coords, y_coords, horizontal)
         valid_xy, x_output, y_output = MGAPredictor.validate_xy_values(x_values, y_values)
         if not valid_xy:
             return x_output, y_output
-        y_output, x_output = get_categorical_output(interest_points, closest_ticks, x_values, y_values, y_coords,
+        if not multi_points or graph_type == 'dot_point':
+            y_output, x_output = get_categorical_output(interest_points, closest_ticks, x_values, y_values, y_coords,
                                                     None if not horizontal else x_coords)
-        # Drop duplicates if exsits
-        x_output, y_output = MGAPredictor.drop_dups(x_output, y_output, x_values, y_values, horizontal)
+        else:
+            y_output, x_output = get_categorical_output_multi_points(interest_points, closest_ticks, x_values, y_values,
+                                                                     y_coords, None if not horizontal else x_coords)
+
+        if dist_drop_dups:
+            distances = MGAPredictor.get_dist_2_c_tick(interest_points, closest_ticks, x_coords, y_coords, horizontal)
+        else:
+            distances = None
+        x_output, y_output = MGAPredictor.drop_dups(x_output, y_output, x_values, y_values, horizontal, distances)
 
         x_output, y_output, filled = MGAPredictor.fill_output_missing_val(graph_type, x_output, y_output,
                                                                           x_values, y_values, horizontal)
@@ -113,12 +153,14 @@ class MGAPredictor:
         if horizontal and filled:
             out_order = [np.where(y_output == y)[0][0] for y in y_values if y in y_output]
             x_output, y_output = x_output[out_order], y_output[out_order]
+        if len(y_output) > len(x_output) and not horizontal:
+            x_output = np.array(x_output.tolist() + [""]* (len(y_output) - len(x_output)))
         # output_order = MGAPredictor.get_output_order(x_output)
         return x_output, y_output
 
 
     @staticmethod
-    def postprocess_numeric(finsl_res):
+    def postprocess_numeric(finsl_res, multi_points=False):
         x_y, labels, values = ticks_to_numeric(finsl_res, ["x_ticks", "y_ticks"])
         closest_ticks, x_ticks_xy, y_ticks_xy = find_closest_ticks(x_y, labels, "scatter_point", 2, 2)
         interest_points, x_values, y_values, y_coords, x_coords, logic_vec = get_ip_data(x_y, labels, values,
@@ -128,34 +170,44 @@ class MGAPredictor:
         valid_xy, x_output, y_output = MGAPredictor.validate_xy_values(x_values, y_values, False)
         if not valid_xy:
             return x_output, y_output
-        y_output, x_output = get_numerical_output(interest_points, closest_ticks, x_values, y_values, x_coords,
+        if not multi_points:
+            y_output, x_output = get_numerical_output(interest_points, closest_ticks, x_values, y_values, x_coords,
                                                   y_coords)
+        else:
+            y_output, x_output = get_numerical_output_multi_points(interest_points, x_values, y_values,
+                                                                   x_coords, y_coords)
         return x_output, y_output
 
     @staticmethod
-    def postprocess_line(finsl_res):
+    def postprocess_line(finsl_res, apply_dnal=True, multi_points=False, dist_drop_dups=False):
         # TODO special case: shared origin
-        return MGAPredictor.postprocess_cat(finsl_res, graph_type="line_point")
+        return MGAPredictor.postprocess_cat(finsl_res, graph_type="line_point",
+                                            apply_dnal=apply_dnal, multi_points=multi_points,
+                                            dist_drop_dups=dist_drop_dups)
 
     @staticmethod
-    def postprocess_dot(finsl_res):
-        x_output, y_output = MGAPredictor.postprocess_cat(finsl_res, graph_type="dot_point")
+    def postprocess_dot(finsl_res, apply_dnal=True, multi_points=False, dist_drop_dups=False):
+        x_output, y_output = MGAPredictor.postprocess_cat(finsl_res, graph_type="dot_point",
+                                                          apply_dnal=apply_dnal, multi_points=multi_points,
+                                                          dist_drop_dups=dist_drop_dups)
         if is_numeric(x_output, dot=True):
             x_output = [re.sub(r'[a-zA-Z]', '', val) for val in x_output]
             return np.array([float(val) if val not in ["None_ocr_val", ""] else 0 for val in x_output]), y_output
         return x_output, y_output
 
     @staticmethod
-    def postprocess_bar(finsl_res, graph_class):
+    def postprocess_bar(finsl_res, graph_class, apply_dnal=True, multi_points=False, dist_drop_dups=False):
         # TODO check if bar is horizontal or vertical and handle data appropriately
         # TODO special case: histograms
         x_output, y_output = MGAPredictor.postprocess_cat(finsl_res, graph_type="bar",
-                                                          horizontal= graph_class == "horizontal_bar")
+                                                          horizontal= graph_class == "horizontal_bar",
+                                                          apply_dnal=apply_dnal, multi_points=multi_points,
+                                                          dist_drop_dups=dist_drop_dups)
         return x_output, y_output
 
     @staticmethod
-    def postprocess_scat(finsl_res):
-        return MGAPredictor.postprocess_numeric(finsl_res)
+    def postprocess_scat(finsl_res, multi_points=False):
+        return MGAPredictor.postprocess_numeric(finsl_res, multi_points=multi_points)
 
     def get_graph_type_class(self, finsl_res, img=None):
         if self.classifier_method == "comb":
@@ -210,17 +262,20 @@ class MGAPredictor:
         graph_type, graph_class = self.get_graph_type_class(finsl_res, img)
         print(graph_type, graph_class)
         if graph_type == "line_point":
-            x_output, y_output = self.postprocess_line(finsl_res)
+            x_output, y_output = self.postprocess_line(finsl_res, self.apply_dnal, self.multi_points,
+                                                       self.dist_drop_dups)
             y_output = replace_infinite(y_output)
         if graph_type == "dot_point":
-            x_output, y_output = self.postprocess_dot(finsl_res)
+            x_output, y_output = self.postprocess_dot(finsl_res, self.apply_dnal, self.multi_points,
+                                                      self.dist_drop_dups)
             y_output = replace_infinite(y_output)
         if graph_type == "bar":
-            x_output, y_output = self.postprocess_bar(finsl_res, graph_class)
+            x_output, y_output = self.postprocess_bar(finsl_res, graph_class, self.apply_dnal, self.multi_points,
+                                                      self.dist_drop_dups)
             y_output = replace_infinite(y_output)
             x_output = replace_infinite(x_output)
         if graph_type == "scatter_point":
-            x_output, y_output = self.postprocess_scat(finsl_res)
+            x_output, y_output = self.postprocess_scat(finsl_res, self.multi_points)
             y_output = replace_infinite(y_output)
             x_output = replace_infinite(x_output)
 
@@ -267,7 +322,7 @@ if __name__ == "__main__":
     overwrite = True
     save_res = True
     imgs_paths_0 = [
-        r"D:\MGA\sorted_images\dot\00b1597b6970.jpg"
+        # r"D:\MGA\sorted_images\dot\00b1597b6970.jpg"
         # r"D:\train\images\00d76c715deb.jpg",
         # r"D:\train\images\0073ac9cd239.jpg",
         #
@@ -295,7 +350,7 @@ if __name__ == "__main__":
     res_files = [file.split("_")[0] for file in os.listdir(res_foldr)]
     imgs_paths = [os.path.join(imgs_dir, img) for img in os.listdir(imgs_dir)
                                  if img.split(".")[0] not in outlier_images + non_imgs_zero and img.endswith(".jpg") ]
-    for img_path in imgs_paths_0 + imgs_paths[148:]:
+    for img_path in imgs_paths_0 + imgs_paths[166:]:
         try:
             img_name = os.path.basename(img_path).split(".")[0]
             if not overwrite:

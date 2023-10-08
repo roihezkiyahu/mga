@@ -1,3 +1,4 @@
+# golbal data serving multiple scripts
 box_classes = ["plot", "x_tick", "y_tick", "scatter_point", "bar", "dot_point", "line_point", "tick_label"]
 colors_list = ["r", "blue", "blue", "black", "purple", "yellow", "green", "orange"]
 chart_labels = ["line", "scatter", "vertical_bar", "horizontal_bar", "dot"]

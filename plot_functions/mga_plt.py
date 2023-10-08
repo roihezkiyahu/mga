@@ -25,15 +25,15 @@ color_mapping = {
     "blue": (0, 0, 255),
     "black": (0, 0, 0),
     "purple": (128, 0, 128),
-    "yellow": (255, 255, 0),
+    "yellow": (255, 165, 0),
     "green": (0, 128, 0),
-    "orange": (255, 165, 0)
+    "orange": (0, 165, 255)
 }
 
 class_2_color_cv = {box_class: color_mapping[color] for box_class, color in zip(box_classes, colors_list)}
 
 
-def plot_image_with_boxes(img_path, boxes, jupyter=True):
+def plot_image_with_boxes(img_path, boxes, jupyter=True, save_dir=""):
     if isinstance(img_path, str):
         img = cv2.imread(img_path)
     else:
@@ -52,6 +52,10 @@ def plot_image_with_boxes(img_path, boxes, jupyter=True):
 
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
+    if save_dir!= "":
+        plt.imshow(img_rgb)
+        plt.savefig(save_dir)
+        plt.close()
     if jupyter:
         display(Image.fromarray(img_rgb))
     else:

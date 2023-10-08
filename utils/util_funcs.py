@@ -406,17 +406,36 @@ def replace_infinite(input_list):
     return list(array)
 
 
-def find_duplicate_indices(lst):
+# def find_duplicate_indices(lst, distances=None):
+#     value_indices = {}
+#     duplicate_indices = []
+#
+#     for index, item in enumerate(lst):
+#         if item in value_indices and item != "None_ocr_val":
+#             duplicate_indices.append(index)
+#         else:
+#             value_indices[item] = index
+#
+#     return duplicate_indices
+
+def find_duplicate_indices(lst, distances=None):
     value_indices = {}
-    duplicate_indices = []
+    duplicate_indices = set()
 
     for index, item in enumerate(lst):
-        if item in value_indices and item != "None_ocr_val":
-            duplicate_indices.append(index)
+        if item != "None_ocr_val" and item in value_indices:
+            previous_index = value_indices[item]
+            if not isinstance(distances, type(None)):
+                if distances[index] < distances[previous_index]:
+                    duplicate_indices.add(previous_index)
+                    value_indices[item] = index
+            else:
+                duplicate_indices.add(index)
         else:
             value_indices[item] = index
 
-    return duplicate_indices
+    return list(duplicate_indices)
+
 
 
 def lowercase_except_first_letter(arr):
@@ -507,9 +526,16 @@ def remove_failed_files(folder_path):
 if __name__ == "__main__":
     # sort_yolo_folders(r"D:\train\images", r"D:\MGA\labels", base_dir=r"D:\MGA\dataset")
     splits = pd.read_csv(r"D:\MGA\data_split.csv")
-    result_df = create_dataframe(r"G:\My Drive\MGA\img_res_new")
-    result_df.to_csv(r"G:\My Drive\MGA\img_res_new.csv")
+    result_df = create_dataframe(r"G:\My Drive\MGA\img_res_classifier_extracted")
+    result_df.to_csv(r"G:\My Drive\MGA\img_res_comb_extracted.csv")
     result_df["score"] = result_df["score"].astype(int)
+
+    print("calssifier results")
+    bars_obs = result_df["chart_type_gt"].str.endswith("_bar")
+    bars_obs = bars_obs.fillna(True)
+    print(np.mean(result_df["chart_type"] == result_df["chart_type_gt"]))
+    print(np.mean(result_df["chart_type"][~bars_obs] == result_df["chart_type_gt"][~bars_obs]))
+
     result_df["score_0"] = result_df["score"] == 0
     print(result_df["score"].mean())
     print(result_df.groupby("chart_type")["score"].mean())
