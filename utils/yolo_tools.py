@@ -282,9 +282,17 @@ def post_process_texts(texts):
             numeric_text = convert_texts_with_default(texts) # np.array([int(text) if "." not in text else float(text) for text in texts])
             diff_vec = numeric_text[1:] - numeric_text[:-1]
             values, counts = np.unique(diff_vec[np.isfinite(diff_vec)], return_counts=True)
+            if np.max(counts) == 1:
+                return texts
             mode_value = values[np.argmax(counts)]
-            for i in np.where(np.any([~np.isclose(diff_vec, mode_value, atol=1e-8), ~np.isfinite(diff_vec)], axis=0))[0]:
-                numeric_text[i + 1] = numeric_text[i] + mode_value
+            if not (mode_value == diff_vec)[0]:
+                for i in np.where(np.any([~np.isclose(diff_vec, mode_value, atol=1e-8), ~np.isfinite(diff_vec)],
+                                         axis=0))[0][::-1]:
+                    numeric_text[i] = numeric_text[i + 1] - mode_value
+            else:
+                for i in np.where(np.any([~np.isclose(diff_vec, mode_value, atol=1e-8), ~np.isfinite(diff_vec)],
+                                     axis=0))[0]:
+                    numeric_text[i + 1] = numeric_text[i] + mode_value
             return [str(int(text)) if float(text) == int(text) else str(text) for text in numeric_text]
     except Exception as e:
         print(e)
@@ -354,6 +362,8 @@ def tick_label2axis_label(box_torch):
         x_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 1] > max_y+
                                                    min(torch.median(y_tick_labels[:,2]).item(),
                                                           torch.median(y_tick_labels[:,3]).item())/2], 0)
+        if not len(x_tick_labels):
+            x_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 1] > max_y], 0)
     else:
         x_tick_labels = sort_torch_by_col(
             tick_labels[tick_labels[:, 1] > max_y], 0)
