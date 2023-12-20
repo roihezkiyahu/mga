@@ -425,10 +425,9 @@ def find_duplicate_indices(lst, distances=None):
     for index, item in enumerate(lst):
         if item != "None_ocr_val" and item in value_indices:
             previous_index = value_indices[item]
-            if not isinstance(distances, type(None)):
-                if distances[index] < distances[previous_index]:
-                    duplicate_indices.add(previous_index)
-                    value_indices[item] = index
+            if distances[index] < distances[previous_index]:
+                duplicate_indices.add(previous_index)
+                value_indices[item] = index
             else:
                 duplicate_indices.add(index)
         else:

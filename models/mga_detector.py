@@ -12,7 +12,6 @@ import numpy as np
 class GraphDetecor:
     def __init__(self, model, acc_device="cpu", ocr_mode="paddleocr", iou=0.5, conf=0.15, show_res=False,
                  ocr_model_paths={}, apply_nms=True, apply_osp=True, apply_rotate_ocr=False, apply_ppt=True):
-        # TODO add cuda support
         if isinstance(model, str):
             self.model = YOLO(model)
         else:
@@ -56,7 +55,6 @@ class GraphDetecor:
         finsl_res = [self.reformat_boxes(box_torch, img, img_res, conf, img_n) for box_torch, img, img_res, conf, img_n
                      in zip(boxes, imgs, res, confs, img_list)]
         return finsl_res, imgs
-        # box_classes = ["plot", "x_tick", "y_tick", "scatter_point", "bar", "dot_point", "line_point", "tick_label"]
 
     def reformat_boxes(self, box_torch, img, res, confs, img_n):
         if self.show_res:

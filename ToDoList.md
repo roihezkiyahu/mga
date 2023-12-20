@@ -10,12 +10,8 @@ numerical values for scatter plots~~
 - ~~90 deg detection and rotation~~
 - validate results (run on validation set, then aggregate the results df)
 - run on kaggle
-- check a combintion of yolo as clasifier and regular clasifier (maybe just for bars)
+- ~~check a combintion of yolo as clasifier and regular clasifier (maybe just for bars)~~
 
-## runtime
-- CUDA
-- Batching
-- Multiprocess
 
 ## classifier
 - ~~upload classifier model weights~~
@@ -29,10 +25,10 @@ numerical values for scatter plots~~
 
 
 ## detector
-- generate data to general detector
-- check line detector: Background images - in training
-- check corrupt images
-- delete miss classified background image 
+- ~~generate data to general detector~~
+- ~~check line detector: Background images - in training~~
+- ~~check corrupt images~~
+- ~~delete miss classified background image~~ 
 - ~~Yolo wrapper, results to tensor: taking the yolo output and creating a tensor suitable for next stage prediction,
 should include x,y,type,value~~
 - ~~add resume option from started project~~

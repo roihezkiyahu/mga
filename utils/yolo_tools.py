@@ -352,10 +352,8 @@ def tick_label2axis_label(box_torch):
     y_tick_labels = sort_torch_by_col(tick_labels[y_condition], 1)
     if len(y_tick_labels):
         x_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 1] > max_y+
-                                                      min(torch.median(y_tick_labels[:,2]).item(),
+                                                   min(torch.median(y_tick_labels[:,2]).item(),
                                                           torch.median(y_tick_labels[:,3]).item())/2], 0)
-        if not len(x_tick_labels):
-            x_tick_labels = sort_torch_by_col(tick_labels[tick_labels[:, 1] > max_y], 0)
     else:
         x_tick_labels = sort_torch_by_col(
             tick_labels[tick_labels[:, 1] > max_y], 0)
