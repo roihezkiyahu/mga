@@ -180,7 +180,6 @@ class MGAPredictor:
 
     @staticmethod
     def postprocess_line(finsl_res, apply_dnal=True, multi_points=False, dist_drop_dups=False):
-        # TODO special case: shared origin
         return MGAPredictor.postprocess_cat(finsl_res, graph_type="line_point",
                                             apply_dnal=apply_dnal, multi_points=multi_points,
                                             dist_drop_dups=dist_drop_dups)
@@ -197,8 +196,6 @@ class MGAPredictor:
 
     @staticmethod
     def postprocess_bar(finsl_res, graph_class, apply_dnal=True, multi_points=False, dist_drop_dups=False):
-        # TODO check if bar is horizontal or vertical and handle data appropriately
-        # TODO special case: histograms
         x_output, y_output = MGAPredictor.postprocess_cat(finsl_res, graph_type="bar",
                                                           horizontal= graph_class == "horizontal_bar",
                                                           apply_dnal=apply_dnal, multi_points=multi_points,

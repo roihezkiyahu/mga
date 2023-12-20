@@ -231,7 +231,6 @@ def create_bounding_boxes(df, width=12):
 def annotation_to_labels(image_path, chart_boxes, is_box=True, labels_folder="labels", img_folder="", gen=False,
                          only_plot_area=False):
     if not is_box:
-        # TODO make sure it works correctly when reading data from files and not from flow
         chart_boxes = get_bboxes(chart_boxes, width=12, gen=gen, only_plot_area=only_plot_area)
     image = cv2.imread(image_path)
     if isinstance(image, type(None)):
